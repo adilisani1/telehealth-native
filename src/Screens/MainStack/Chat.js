@@ -16,6 +16,7 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import TxtInput from '../../components/TextInput/Txtinput';
 import { Fonts } from '../../Constants/Fonts';
 
+
 const Chat = () => {
     const { isDarkMode } = useSelector(store => store.theme);
   const [messages, setMessages] = useState([

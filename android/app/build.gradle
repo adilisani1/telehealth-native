@@ -78,6 +78,15 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
+    //added for webRtc
+     compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+      // Enable desugaring
+//    coreLibraryDesugaringEnabled true
+
     namespace "com.mydoctorappmtechub"
     defaultConfig {
         applicationId "com.mydoctorappmtechub"
@@ -127,4 +136,7 @@ dependencies {
     } else {
         implementation jscFlavor
     }
+
+//        coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:1.1.5'
+
 }

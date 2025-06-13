@@ -10,33 +10,42 @@ import { persistor, Store } from './src/redux/Store/Store';
 
 import { Colors } from './src/Constants/themeColors';
 import { setDarkMode } from './src/redux/Slices/Theme';
+import {AuthProvider} from './src/Providers/AuthProvider';
+import {VideoCallProvider} from './src/Providers/VideoCallProvider';
+import {SocketProvider} from './src/Providers/SocketProvider';
 
 const MainRoot = () => {
-  const { isDarkMode } = useSelector(store => store.theme);
+  const {isDarkMode} = useSelector(store => store.theme);
   const colorScheme = useColorScheme();
-// console.log(colorScheme);
+  // console.log(colorScheme);
 
-const dispatch = useDispatch()
+  const dispatch = useDispatch();
 
-
-  useEffect(()=> {
+  useEffect(() => {
     if (colorScheme === 'dark') {
-      dispatch(setDarkMode(true))
-    }else{
-      dispatch(setDarkMode(false))
+      dispatch(setDarkMode(true));
+    } else {
+      dispatch(setDarkMode(false));
     }
-  },[colorScheme])
+  }, [colorScheme]);
 
   return (
     <SafeAreaView
       style={[
         styles.container,
-        { backgroundColor: isDarkMode ? Colors.darkTheme.background : Colors.lightTheme.secondryColor },
-      ]}
-    >
+        {
+          backgroundColor: isDarkMode
+            ? Colors.darkTheme.background
+            : Colors.lightTheme.secondryColor,
+        },
+      ]}>
       <StatusBar
-        backgroundColor={isDarkMode ? Colors.darkTheme.secondryColor : Colors.lightTheme.secondryColor}
-        barStyle={isDarkMode? 'light-content': 'dark-content'}
+        backgroundColor={
+          isDarkMode
+            ? Colors.darkTheme.secondryColor
+            : Colors.lightTheme.secondryColor
+        }
+        barStyle={isDarkMode ? 'light-content' : 'dark-content'}
       />
       <Router />
       <DynamicAlert />
@@ -49,7 +58,13 @@ export default function App() {
     <Provider store={Store}>
       <PersistGate loading={null} persistor={persistor}>
         <AlertProvider>
-          <MainRoot />
+          <SocketProvider>
+            <VideoCallProvider>
+              <AuthProvider>
+                <MainRoot />
+              </AuthProvider>
+            </VideoCallProvider>
+          </SocketProvider>
         </AlertProvider>
       </PersistGate>
     </Provider>

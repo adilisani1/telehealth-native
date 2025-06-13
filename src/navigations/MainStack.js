@@ -20,40 +20,51 @@ import ReviewSummary from "../Screens/MainStack/ReviewSummary";
 import PaymentSuccess from "../Screens/MainStack/PaymentSuccess";
 import ThemeSetting from "../Screens/MainStack/ThemeSetting";
 import DetailsScreen from "../Screens/MainStack/DetailsScreen";
+import CallHistoryScreen from '../Screens/MainStack/Call/CallHistoryScreen';
+import CallScreen from '../Screens/MainStack/Call/CallScreen';
 
+const Stack = createNativeStackNavigator();
 
-const Stack = createNativeStackNavigator()
+const MainStack = () => {
+  return (
+    <Stack.Navigator
+      screenOptions={{
+        // tabBarHideOnKeyboard: true,
+        headerShown: false,
+      }}>
+      <Stack.Screen name={SCREENS.TABS} component={BottomTabNavigator} />
+      <Stack.Screen name={SCREENS.SEEALLDOCTORS} component={SeeAllDoctors} />
+      <Stack.Screen name={SCREENS.DETAILS} component={DetailsScreen} />
+      <Stack.Screen name={SCREENS.NEWAPPOINTMENT} component={NewAppointment} />
+      <Stack.Screen name={SCREENS.NOTIFICATONS} component={Notifications} />
+      <Stack.Screen name={SCREENS.CHAT} component={Chat} />
 
-
-const MainStack = () =>{
-    return (
-        <Stack.Navigator screenOptions={{
-            // tabBarHideOnKeyboard: true,
-            headerShown: false,
-           
-        }}>   
-                    <Stack.Screen name={SCREENS.TABS} component={BottomTabNavigator} />
-                    <Stack.Screen name={SCREENS.SEEALLDOCTORS} component={SeeAllDoctors} />
-                    <Stack.Screen name={SCREENS.DETAILS} component={DetailsScreen} />
-                    <Stack.Screen name={SCREENS.NEWAPPOINTMENT} component={NewAppointment} />
-                    <Stack.Screen name={SCREENS.NOTIFICATONS} component={Notifications} />
-                    <Stack.Screen name={SCREENS.CHAT} component={Chat} />
-                    <Stack.Screen name={SCREENS.UPDATEPROFILE} component={UpdateProfile} />
-                    <Stack.Screen name={SCREENS.FAVORITES} component={Favourites} />
-                    <Stack.Screen name={SCREENS.PAYMENTOPTION} component={PaymentOptions} />
-                    <Stack.Screen name={SCREENS.PASSWORDMANAGER} component={PasswordManager} />
-                    <Stack.Screen name={SCREENS.HELPCENTER} component={HelpCenter} />
-                    <Stack.Screen name={SCREENS.NOTIFICATIONSETTINGS} component={NotificationSettings} />
-                    <Stack.Screen name={SCREENS.THEMESETTINGS} component={ThemeSetting} />
-                    <Stack.Screen name={SCREENS.MYAPPOINTMENT} component={MyAppointment} />
-                    <Stack.Screen name={SCREENS.CANCELAPPOINTMENT} component={CancelAppointment} />
-                    <Stack.Screen name={SCREENS.FILTERS} component={Filters} />
-                    <Stack.Screen name={SCREENS.ADDCARD} component={AddCard} />
-                    <Stack.Screen name={SCREENS.REVIEWSUMMARY} component={ReviewSummary} />
-                    <Stack.Screen name={SCREENS.PAYMENTSUCCESS} component={PaymentSuccess} />
-
-        </Stack.Navigator>
-    )
-}
+      <Stack.Screen name={SCREENS.CALL} component={CallScreen} />
+      <Stack.Screen name={SCREENS.CALL_HISTORY} component={CallHistoryScreen} />
+      <Stack.Screen name={SCREENS.UPDATEPROFILE} component={UpdateProfile} />
+      <Stack.Screen name={SCREENS.FAVORITES} component={Favourites} />
+      <Stack.Screen name={SCREENS.PAYMENTOPTION} component={PaymentOptions} />
+      <Stack.Screen
+        name={SCREENS.PASSWORDMANAGER}
+        component={PasswordManager}
+      />
+      <Stack.Screen name={SCREENS.HELPCENTER} component={HelpCenter} />
+      <Stack.Screen
+        name={SCREENS.NOTIFICATIONSETTINGS}
+        component={NotificationSettings}
+      />
+      <Stack.Screen name={SCREENS.THEMESETTINGS} component={ThemeSetting} />
+      <Stack.Screen name={SCREENS.MYAPPOINTMENT} component={MyAppointment} />
+      <Stack.Screen
+        name={SCREENS.CANCELAPPOINTMENT}
+        component={CancelAppointment}
+      />
+      <Stack.Screen name={SCREENS.FILTERS} component={Filters} />
+      <Stack.Screen name={SCREENS.ADDCARD} component={AddCard} />
+      <Stack.Screen name={SCREENS.REVIEWSUMMARY} component={ReviewSummary} />
+      <Stack.Screen name={SCREENS.PAYMENTSUCCESS} component={PaymentSuccess} />
+    </Stack.Navigator>
+  );
+};
 
 export default MainStack;

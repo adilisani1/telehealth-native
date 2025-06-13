@@ -369,13 +369,13 @@ const Home = ({navigation}) => {
           </TouchableOpacity>
         </View>
         <View style={styles.cardShadow}>
-        <TouchableOpacity>
-          <CategoryTab
-            content="Instant Video Consultation"
-            imgUrl={Images.phone}
-          />
+          <TouchableOpacity onPress={() => navigation.navigate(SCREENS.CALL)}>
+            <CategoryTab
+              content="Instant Video Consultation"
+              imgUrl={Images.phone}
+            />
           </TouchableOpacity>
-          </View>
+        </View>
       </View>
 
       {/* 
