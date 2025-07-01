@@ -37,4 +37,14 @@ export let SCREENS = {
   PAYMENTSUCCESS: 'PaymentSuccess',
   CALL: 'CallScreen',
   CALL_HISTORY: 'CallHistory',
+
+  // Doctor Module Screens
+  DOCTOR_DASHBOARD: 'DoctorDashboard',
+  DOCTOR_PROFILE: 'DoctorProfile',
+  DOCTOR_PATIENTS: 'DoctorPatients',
+  PATIENT_PROFILE: 'PatientProfile',
+  CONSULTATION_NOTES: 'ConsultationNotes',
+  MANAGE_AVAILABILITY: 'ManageAvailability',
+  DOCTOR_EARNINGS: 'DoctorEarnings',
+  DOCTOR_APPOINTMENTS: 'DoctorAppointments',
 };

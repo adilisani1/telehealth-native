@@ -16,17 +16,17 @@ import {
 import {RFPercentage} from 'react-native-responsive-fontsize';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
-import {SCREENS} from '../../../Constants/Screens';
-import {Colors} from '../../../Constants/themeColors';
+import {SCREENS} from '../../Constants/Screens';
+import {Colors} from '../../Constants/themeColors';
 import {useDispatch, useSelector} from 'react-redux';
-import StackHeader from '../../../components/Header/StackHeader';
-import {Fonts} from '../../../Constants/Fonts';
-import RBSheetConfirmation from '../../../components/BottomSheets/RBSheetConfirmation';
-import {Svgs} from '../../../assets/Svgs/Svg';
-import {Images} from '../../../assets/Images/images';
-import {useLogout} from '../../../utils/authUtils'; // Use logout with navigation
+import StackHeader from '../../components/Header/StackHeader';
+import {Fonts} from '../../Constants/Fonts';
+import RBSheetConfirmation from '../../components/BottomSheets/RBSheetConfirmation';
+import {Svgs} from '../../assets/Svgs/Svg';
+import {Images} from '../../assets/Images/images';
+import {useLogout} from '../../utils/authUtils'; // Use logout with navigation
 
-const Profile = ({navigation}) => {
+const DoctorProfile = ({navigation}) => {
   const {isDarkMode} = useSelector(store => store.theme);
   const {User} = useSelector(store => store.auth);
   const dispatch = useDispatch();
@@ -95,6 +95,14 @@ const Profile = ({navigation}) => {
         ? Colors.darkTheme.primaryTextColor
         : Colors.lightTheme.primaryTextColor,
       marginTop: hp('1%'),
+    },
+    specialization: {
+      fontSize: RFPercentage(1.8),
+      fontFamily: Fonts.Regular,
+      color: isDarkMode
+        ? Colors.darkTheme.secondryTextColor
+        : Colors.lightTheme.secondryTextColor,
+      marginTop: hp('0.5%'),
     },
     optionsList: {
       marginTop: hp('3%'),
@@ -169,55 +177,73 @@ const Profile = ({navigation}) => {
   const profileOptions = [
     {
       id: '1',
-      name: 'Profile',
+      name: 'Edit Profile',
       icon: 'person-outline',
       screen: SCREENS.UPDATEPROFILE,
     },
     {
       id: '2',
-      name: 'Favorites',
-      icon: 'favorite-outline',
-      screen: SCREENS.FAVORITES,
+      name: 'Manage Availability',
+      icon: 'schedule',
+      screen: SCREENS.MANAGE_AVAILABILITY,
     },
     {
       id: '3',
+      name: 'My Patients',
+      icon: 'people-outline',
+      screen: SCREENS.DOCTOR_PATIENTS,
+    },
+    {
+      id: '4',
+      name: 'Consultation Notes',
+      icon: 'note-add',
+      screen: SCREENS.CONSULTATION_NOTES,
+    },
+    {
+      id: '5',
+      name: 'Earnings Report',
+      icon: 'assessment',
+      screen: SCREENS.DOCTOR_EARNINGS,
+    },
+    {
+      id: '6',
       name: 'Help Center',
       icon: 'help-outline',
       screen: SCREENS.HELPCENTER,
     },
     {
-      id: '4',
+      id: '7',
       name: 'Privacy Policy',
       icon: 'security',
       screen: SCREENS.TERMSANDCONDITION,
     },
     {
-      id: '5',
+      id: '8',
       name: 'App Preference',
       icon: 'settings',
       screen: SCREENS.NOTIFICATIONSETTINGS,
     },
     {
-      id: '7',
+      id: '9',
       name: 'Payment Options',
       icon: 'payment',
       screen: SCREENS.PAYMENTOPTION,
     },
     {
-      id: '8',
+      id: '10',
       name: 'Password Manager',
       icon: 'lock-outline',
       screen: SCREENS.PASSWORDMANAGER,
     },
     {
-      id: '9',
+      id: '11',
       name: 'Log out',
       icon: 'logout',
       button: true,
       action: () => logout_Ref.current.open(),
     },
     {
-      id: '10',
+      id: '12',
       name: 'Delete Account',
       icon: 'delete-outline',
       button: true,
@@ -234,8 +260,9 @@ const Profile = ({navigation}) => {
         <TouchableOpacity style={styles.editIcon}>
           <Icon name="edit" size={RFPercentage(2)} color={Colors.white} />
         </TouchableOpacity>
-        <Text style={styles.profileName}>
-          {User?.name || 'Adewole Abdulazeez'}
+        <Text style={styles.profileName}>Dr. {User?.name || 'John Smith'}</Text>
+        <Text style={styles.specialization}>
+          {User?.specialization || 'Cardiologist'}
         </Text>
       </View>
 
@@ -287,4 +314,4 @@ const Profile = ({navigation}) => {
   );
 };
 
-export default Profile;
+export default DoctorProfile;
