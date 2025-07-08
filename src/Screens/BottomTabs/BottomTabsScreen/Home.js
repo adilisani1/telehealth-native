@@ -349,18 +349,6 @@ const Home = ({navigation}) => {
         <UpcomingCard />
       </View>
 
-      {/* <View style={styles.featureRow}>
-        <CategoryTab
-          content="Find Doctors near you"
-          imgUrl={Images.chat}
-          style={{flex: 1, marginRight: 8}}
-        />
-        <CategoryTab
-          content="Instant Video Consultation"
-          imgUrl={Images.phone}
-          style={{flex: 1, marginLeft: 8}}
-        />
-      </View> */}
       <View style={styles.featureRow}>
         <View style={styles.cardShadow}>
           <TouchableOpacity
@@ -378,35 +366,6 @@ const Home = ({navigation}) => {
         </View>
       </View>
 
-      {/* 
-      <View style={[styles.rowView, { marginBottom: hp(2), paddingHorizontal: wp(6) }]} >
-        <View style={{ alignItems: 'center', justifyContent: 'center' }} >
-          <CustomButton pressedRadius={7} icon={'stethoscope'} iconSize={RFPercentage(3.2)} onPress={() => {
-            setFlatListArray(doctors)
-            setSelectedCategory('Doctors')
-          }} text={'Doctors'} textStyle={[styles.CategoryLabel, selectedCategory === 'Doctors' && styles.SelctedCategoryLabel]} containerStyle={[selectedCategory === 'Doctors' && styles.selectedCategory, { alignItems: 'center'}]} iconColor={isDarkMode ? Colors.darkTheme.primaryColor : Colors.lightTheme.primaryColor} />
-        </View>
-        <View>
-          <CustomButton pressedRadius={7} icon={'pill'} iconSize={RFPercentage(3.2)} onPress={() => {
-            setFlatListArray(pharmacies)
-            setSelectedCategory('Pharmacies')
-          }} text={'Pharmacies'} textStyle={[styles.CategoryLabel, selectedCategory === 'Pharmacies' && styles.SelctedCategoryLabel]} containerStyle={[selectedCategory === 'Pharmacies' && styles.selectedCategory, { alignItems: 'center'}]} iconColor={isDarkMode ? Colors.darkTheme.primaryColor : Colors.lightTheme.primaryColor} />
-
-        </View>
-        <View style={{ alignItems: 'center' }} >
-          <CustomButton pressedRadius={7} icon={'ambulance'} text={'Ambulances'} onPress={() => {
-            setFlatListArray(ambulances)
-            setSelectedCategory('Ambulances')
-          }} textStyle={[styles.CategoryLabel, selectedCategory === 'Ambulances' && styles.SelctedCategoryLabel]} containerStyle={[selectedCategory === 'Ambulances' && styles.selectedCategory, { alignItems: 'center'}]} iconSize={RFPercentage(3.2)} iconColor={isDarkMode ? Colors.darkTheme.primaryColor : Colors.lightTheme.primaryColor} />
-        </View>
-        <View>
-          <CustomButton pressedRadius={7} icon={'hospital-building'} onPress={() => {
-            setSelectedCategory('Hospitals')
-            setFlatListArray(hospitals)
-          }} iconSize={RFPercentage(3.2)} text={'Hospitals'} containerStyle={[selectedCategory === 'Hospitals' && styles.selectedCategory, { alignItems: 'center'}]} textStyle={[styles.CategoryLabel, selectedCategory === 'Hospitals' && styles.SelctedCategoryLabel]} iconColor={isDarkMode ? Colors.darkTheme.primaryColor : Colors.lightTheme.primaryColor} />
-        </View>
-      </View>
-      */}
       {/* Top Doctors */}
       <View style={styles.rowView}>
         <Text style={styles.sectionTitle}>Top {selectedCategory}</Text>
@@ -437,3 +396,55 @@ const Home = ({navigation}) => {
 };
 
 export default Home;
+
+
+
+
+
+
+      {
+        /* <View style={styles.featureRow}>
+        <CategoryTab
+          content="Find Doctors near you"
+          imgUrl={Images.chat}
+          style={{flex: 1, marginRight: 8}}
+        />
+        <CategoryTab
+          content="Instant Video Consultation"
+          imgUrl={Images.phone}
+          style={{flex: 1, marginLeft: 8}}
+        />
+      </View> */
+      }
+
+      {
+        /* 
+      <View style={[styles.rowView, { marginBottom: hp(2), paddingHorizontal: wp(6) }]} >
+        <View style={{ alignItems: 'center', justifyContent: 'center' }} >
+          <CustomButton pressedRadius={7} icon={'stethoscope'} iconSize={RFPercentage(3.2)} onPress={() => {
+            setFlatListArray(doctors)
+            setSelectedCategory('Doctors')
+          }} text={'Doctors'} textStyle={[styles.CategoryLabel, selectedCategory === 'Doctors' && styles.SelctedCategoryLabel]} containerStyle={[selectedCategory === 'Doctors' && styles.selectedCategory, { alignItems: 'center'}]} iconColor={isDarkMode ? Colors.darkTheme.primaryColor : Colors.lightTheme.primaryColor} />
+        </View>
+        <View>
+          <CustomButton pressedRadius={7} icon={'pill'} iconSize={RFPercentage(3.2)} onPress={() => {
+            setFlatListArray(pharmacies)
+            setSelectedCategory('Pharmacies')
+          }} text={'Pharmacies'} textStyle={[styles.CategoryLabel, selectedCategory === 'Pharmacies' && styles.SelctedCategoryLabel]} containerStyle={[selectedCategory === 'Pharmacies' && styles.selectedCategory, { alignItems: 'center'}]} iconColor={isDarkMode ? Colors.darkTheme.primaryColor : Colors.lightTheme.primaryColor} />
+
+        </View>
+        <View style={{ alignItems: 'center' }} >
+          <CustomButton pressedRadius={7} icon={'ambulance'} text={'Ambulances'} onPress={() => {
+            setFlatListArray(ambulances)
+            setSelectedCategory('Ambulances')
+          }} textStyle={[styles.CategoryLabel, selectedCategory === 'Ambulances' && styles.SelctedCategoryLabel]} containerStyle={[selectedCategory === 'Ambulances' && styles.selectedCategory, { alignItems: 'center'}]} iconSize={RFPercentage(3.2)} iconColor={isDarkMode ? Colors.darkTheme.primaryColor : Colors.lightTheme.primaryColor} />
+        </View>
+        <View>
+          <CustomButton pressedRadius={7} icon={'hospital-building'} onPress={() => {
+            setSelectedCategory('Hospitals')
+            setFlatListArray(hospitals)
+          }} iconSize={RFPercentage(3.2)} text={'Hospitals'} containerStyle={[selectedCategory === 'Hospitals' && styles.selectedCategory, { alignItems: 'center'}]} textStyle={[styles.CategoryLabel, selectedCategory === 'Hospitals' && styles.SelctedCategoryLabel]} iconColor={isDarkMode ? Colors.darkTheme.primaryColor : Colors.lightTheme.primaryColor} />
+        </View>
+      </View>
+      */
+      }

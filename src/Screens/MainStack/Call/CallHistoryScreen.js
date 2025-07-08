@@ -1,38 +1,185 @@
-import React from 'react';
-import {View, Text, StyleSheet, TouchableOpacity} from 'react-native';
+import React, {useState} from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TextInput,
+  FlatList,
+  TouchableOpacity,
+} from 'react-native';
+import Ionicons from 'react-native-vector-icons/Ionicons';
+import Feather from 'react-native-vector-icons/Feather';
 
-const CallHistoryScreen = ({navigation}) => {
+const callHistoryData = [
+  {
+    id: '1',
+    name: '+1 737 736 728',
+    type: 'incoming',
+    time: '1:24',
+    date: '11/12/23',
+  },
+  {
+    id: '2',
+    name: 'Jacob Jones',
+    type: 'outgoing',
+    time: '1:24',
+    date: '11/12/23',
+  },
+  {
+    id: '3',
+    name: 'Jerome Bell',
+    type: 'missed',
+    time: '1:24',
+    date: '11/12/23',
+  },
+  {
+    id: '4',
+    name: '+1 737 736 728',
+    type: 'incoming',
+    time: '1:24',
+    date: '11/12/23',
+  },
+  {
+    id: '5',
+    name: 'Devon Lane',
+    type: 'incoming',
+    time: '1:24',
+    date: '11/12/23',
+  },
+  {
+    id: '6',
+    name: '+1 737 736 728',
+    type: 'outgoing',
+    time: '1:24',
+    date: '11/12/23',
+  },
+];
+
+const getCallIcon = type => {
+  if (type === 'incoming')
+    return <Feather name="phone-incoming" size={20} color="#41C857" />;
+  if (type === 'outgoing')
+    return <Feather name="phone-outgoing" size={20} color="#2196F3" />;
+  if (type === 'missed')
+    return <Feather name="phone-missed" size={20} color="#FF4B4B" />;
+  return null;
+};
+
+const CallHistoryScreen = () => {
+  const [search, setSearch] = useState('');
+  const filtered = callHistoryData.filter(i =>
+    i.name.toLowerCase().includes(search.toLowerCase()),
+  );
+
+  const renderItem = ({item}) => (
+    <View style={styles.itemRow}>
+      <View style={styles.iconWrap}>{getCallIcon(item.type)}</View>
+      <View style={styles.infoWrap}>
+        <Text style={styles.name}>{item.name}</Text>
+        <View style={styles.subInfoRow}>
+          <Text style={styles.subInfo}>{item.date}</Text>
+          <Text style={styles.dot}>·</Text>
+          <Text style={styles.subInfo}>{item.time}</Text>
+        </View>
+      </View>
+      <View style={styles.timeWrap}>
+        <Text style={styles.time}>{item.time}</Text>
+        <Ionicons
+          name="checkmark-done-circle-outline"
+          size={22}
+          color="#4C9AFF"
+          style={{marginTop: 2}}
+        />
+      </View>
+    </View>
+  );
+
   return (
-    <View style={styles.container}>
-      <Text style={styles.heading}>Call History</Text>
-      <Text style={styles.text}>
-        All previous doctor/patient calls will show here.
-      </Text>
-      <TouchableOpacity
-        style={styles.button}
-        onPress={() => navigation.goBack()}>
-        <Text style={styles.buttonText}>Back to Call</Text>
-      </TouchableOpacity>
+    <View style={styles.root}>
+      <View style={styles.card}>
+        <View style={styles.headerRow}>
+          <Text style={styles.title}>History</Text>
+          <TouchableOpacity>
+            <Feather name="settings" size={22} color="#1C274C" />
+          </TouchableOpacity>
+        </View>
+        <TextInput
+          style={styles.search}
+          placeholder="Search"
+          value={search}
+          onChangeText={setSearch}
+          placeholderTextColor="#AAA"
+        />
+        <FlatList
+          data={filtered}
+          renderItem={renderItem}
+          keyExtractor={item => item.id}
+          ItemSeparatorComponent={() => <View style={styles.separator} />}
+          contentContainerStyle={{paddingBottom: 10}}
+          showsVerticalScrollIndicator={false}
+        />
+      </View>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
+  root: {
     flex: 1,
-    justifyContent: 'center',
+    backgroundColor: '#f5f7fa',
     alignItems: 'center',
-    backgroundColor: '#fff',
   },
-  heading: {fontSize: 26, fontWeight: 'bold', marginBottom: 20},
-  text: {fontSize: 18, marginBottom: 40},
-  button: {
-    backgroundColor: '#00d4a7',
-    padding: 16,
-    borderRadius: 8,
-    marginVertical: 10,
+  card: {
+    width: '95%',
+    marginTop: 15,
+    borderRadius: 22,
+    padding: 12,
+    // backgroundColor: '#fff',
+    // shadowColor: '#000',
+    // shadowOffset: {width: 0, height: 2},
+    // shadowOpacity: 0.06,
+    // shadowRadius: 10,
+    // elevation: 3,
   },
-  buttonText: {color: '#fff', fontWeight: 'bold', fontSize: 16},
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  title: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#222',
+  },
+  search: {
+    backgroundColor: '#f2f3f8',
+    borderRadius: 12,
+    paddingHorizontal: 15,
+    paddingVertical: 8,
+    fontSize: 15,
+    marginBottom: 12,
+    color: '#222',
+  },
+  itemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+  },
+  iconWrap: {width: 34, alignItems: 'center'},
+  infoWrap: {flex: 1, marginLeft: 6},
+  name: {fontSize: 16, fontWeight: '600', color: '#1C274C'},
+  subInfoRow: {flexDirection: 'row', alignItems: 'center', marginTop: 2},
+  subInfo: {color: '#9298A5', fontSize: 13},
+  dot: {
+    color: '#9298A5',
+    marginHorizontal: 4,
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  timeWrap: {alignItems: 'flex-end', minWidth: 50},
+  time: {fontSize: 13, color: '#9298A5', marginBottom: 2, textAlign: 'right'},
+  separator: {height: 1, backgroundColor: '#f2f3f8', marginLeft: 38},
 });
 
 export default CallHistoryScreen;

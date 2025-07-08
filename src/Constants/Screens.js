@@ -47,4 +47,8 @@ export let SCREENS = {
   MANAGE_AVAILABILITY: 'ManageAvailability',
   DOCTOR_EARNINGS: 'DoctorEarnings',
   DOCTOR_APPOINTMENTS: 'DoctorAppointments',
+
+  DOCTOR_BOTTOM_TABS: 'DoctorBottomTabs',
+  DOCTOR_ADMIN_CHAT: 'DoctorAdminChat',
+  DOCTOR_PAYMENT_OPTIONS: 'DoctorPaymentOptions',
 };

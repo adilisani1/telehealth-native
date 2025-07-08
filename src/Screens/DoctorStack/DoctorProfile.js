@@ -24,7 +24,7 @@ import {Fonts} from '../../Constants/Fonts';
 import RBSheetConfirmation from '../../components/BottomSheets/RBSheetConfirmation';
 import {Svgs} from '../../assets/Svgs/Svg';
 import {Images} from '../../assets/Images/images';
-import {useLogout} from '../../utils/authUtils'; // Use logout with navigation
+import {useLogout} from '../../utils/authUtils';
 
 const DoctorProfile = ({navigation}) => {
   const {isDarkMode} = useSelector(store => store.theme);
@@ -32,17 +32,16 @@ const DoctorProfile = ({navigation}) => {
   const dispatch = useDispatch();
   const logout_Ref = useRef();
   const delete_Ref = useRef();
-  const logout = useLogout(); // Use logout with navigation
+  const logout = useLogout();
 
   const handleLogout = () => {
     logout_Ref.current.close();
-    logout(navigation); // Pass navigation to logout
+    logout(navigation);
   };
 
   const handleDeleteAccount = () => {
     delete_Ref.current.close();
-    // Add delete account logic here
-    logout(navigation); // Pass navigation to logout
+    logout(navigation);
   };
 
   const styles = StyleSheet.create({
@@ -225,10 +224,11 @@ const DoctorProfile = ({navigation}) => {
     },
     {
       id: '9',
-      name: 'Payment Options',
+      name: 'Doctor Payment',
       icon: 'payment',
-      screen: SCREENS.PAYMENTOPTION,
+      screen: SCREENS.DOCTOR_PAYMENT_OPTIONS,
     },
+
     {
       id: '10',
       name: 'Password Manager',

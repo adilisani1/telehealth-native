@@ -18,6 +18,8 @@ import HelpCenter from '../Screens/MainStack/HelpCenter';
 import ThemeSetting from '../Screens/MainStack/ThemeSetting';
 import PasswordManager from '../Screens/MainStack/PasswordManager';
 import NotificationSettings from '../Screens/MainStack/AppPrefrences';
+import DoctorBottomTabs from '../Screens/DoctorStack/DoctorBottomTabs';
+import DoctorPaymentOptions from '../Screens/DoctorStack/DoctorPaymentOptions';
 
 const Stack = createNativeStackNavigator();
 
@@ -27,14 +29,17 @@ const DoctorStack = () => {
       screenOptions={{
         headerShown: false,
       }}
-      initialRouteName={SCREENS.DOCTOR_DASHBOARD}>
+      initialRouteName={SCREENS.DOCTOR_BOTTOM_TABS}>
+      <Stack.Screen
+        name={SCREENS.DOCTOR_BOTTOM_TABS}
+        component={DoctorBottomTabs}
+      />
       <Stack.Screen
         name={SCREENS.DOCTOR_DASHBOARD}
         component={DoctorDashboard}
       />
       <Stack.Screen name={SCREENS.DOCTOR_PROFILE} component={DoctorProfile} />
       <Stack.Screen name={SCREENS.DOCTOR_PATIENTS} component={DoctorPatients} />
-
       <Stack.Screen name={SCREENS.PATIENT_PROFILE} component={PatientProfile} />
       <Stack.Screen
         name={SCREENS.CONSULTATION_NOTES}
@@ -43,8 +48,7 @@ const DoctorStack = () => {
       <Stack.Screen
         name={SCREENS.MANAGE_AVAILABILITY}
         component={ManageAvailability}
-      /> 
-
+      />
       <Stack.Screen name={SCREENS.DOCTOR_EARNINGS} component={DoctorEarnings} />
       <Stack.Screen
         name={SCREENS.DOCTOR_APPOINTMENTS}
@@ -65,6 +69,11 @@ const DoctorStack = () => {
       <Stack.Screen
         name={SCREENS.NOTIFICATIONSETTINGS}
         component={NotificationSettings}
+      />
+
+      <Stack.Screen
+        name={SCREENS.DOCTOR_PAYMENT_OPTIONS}
+        component={DoctorPaymentOptions}
       />
     </Stack.Navigator>
   );

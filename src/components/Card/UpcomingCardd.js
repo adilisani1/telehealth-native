@@ -12,56 +12,57 @@ const UpcomingCard = () => {
 
 
     const styles = StyleSheet.create({
-        cardContainer: {
-          flexDirection: 'row',
-          backgroundColor: isDarkMode? Colors.darkTheme.primaryColor: Colors.lightTheme.primaryColor, // Match the green background color
-          borderRadius: wp(3),
-          padding: wp(4),
-          elevation: 2, // For shadow on Android
-          alignItems: 'center',
-          justifyContent: 'space-between',
-        },
-        textContainer: {
-          flex: 1,
-        },
-        doctorName: {
-          fontSize: RFPercentage(2.4),
-          color: isDarkMode? Colors.lightTheme.primaryTextColor: Colors.white,
-          fontFamily: Fonts.Bold
-        },
-        specialization: {
-          fontSize: RFPercentage(2),
-          color: isDarkMode? Colors.lightTheme.primaryTextColor: Colors.white,
-          fontFamily: Fonts.Medium,
-          marginVertical: hp(0.5),
-        },
-        scheduleContainer: {
-          backgroundColor: Colors.white,
-          borderRadius: wp(2),
-          paddingHorizontal: wp(3),
-          paddingVertical: hp(0.8),
-          marginTop: hp(1),
-          flexDirection: 'row',
-          alignItems: 'center',
-          width: wp(40)
-        },
-        scheduleText: {
-          fontSize: RFPercentage(1.8),
-          color:  Colors.darkTheme.secondryTextColor,
-        },
-        clockIcon: {
-          fontWeight: 'bold',
-        },
-        doctorImage: {
-          width: wp(20),
-          height: wp(20),
-        //   borderRadius: wp(10),
-        },
-      });
+      cardContainer: {
+        flexDirection: 'row',
+        backgroundColor: isDarkMode
+          ? Colors.darkTheme.primaryColor
+          : Colors.lightTheme.primaryColor,
+        borderRadius: wp(3),
+        padding: wp(4),
+        elevation: 2,
+        alignItems: 'center',
+        justifyContent: 'space-between',
+      },
+      textContainer: {
+        flex: 1,
+      },
+      doctorName: {
+        fontSize: RFPercentage(2.4),
+        color: isDarkMode ? Colors.lightTheme.primaryTextColor : Colors.white,
+        fontFamily: Fonts.Bold,
+      },
+      specialization: {
+        fontSize: RFPercentage(2),
+        color: isDarkMode ? Colors.lightTheme.primaryTextColor : Colors.white,
+        fontFamily: Fonts.Medium,
+        marginVertical: hp(0.5),
+      },
+      scheduleContainer: {
+        backgroundColor: Colors.white,
+        borderRadius: wp(2),
+        paddingHorizontal: wp(3),
+        paddingVertical: hp(0.8),
+        marginTop: hp(1),
+        flexDirection: 'row',
+        alignItems: 'center',
+        width: wp(40),
+      },
+      scheduleText: {
+        fontSize: RFPercentage(1.8),
+        color: Colors.darkTheme.secondryTextColor,
+      },
+      clockIcon: {
+        fontWeight: 'bold',
+      },
+      doctorImage: {
+        width: wp(20),
+        height: wp(20),
+      },
+    });
   return (
     <View style={styles.cardContainer}>
       <View style={styles.textContainer}>
-        <Text style={styles.doctorName}>Dr. Rasheed Idris</Text>
+        <Text style={styles.doctorName}>Dr. Idris</Text>
         <Text style={styles.specialization}>Cardiovascular</Text>
         <View style={styles.scheduleContainer}>
           <Text style={styles.scheduleText}>
