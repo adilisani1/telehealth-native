@@ -1,0 +1,12 @@
+export const DB_NAME = "telehealth";
+export const OTP_EXPIRY_MINUTES = 10;
+export const EMAIL_FROM = "no-reply@telehealth.com";
+export const OTP_LENGTH = 6;
+export const EMAIL_VERIFICATION_SUBJECT = "Verify your email for Telehealth";
+export const PASSWORD_RESET_OTP_EXPIRY_MINUTES = 10;
+export const PASSWORD_RESET_EMAIL_SUBJECT = "Password Reset Request for Telehealth";
+export const APPOINTMENT_CONFIRMATION_EMAIL_SUBJECT = "Appointment Confirmation - Telehealth";
+export const APPOINTMENT_REMINDER_EMAIL_SUBJECT = "Appointment Reminder - Telehealth";
+export const MISSED_APPOINTMENT_EMAIL_SUBJECT = "Missed Appointment Alert - Telehealth";
+export const ADMIN_NOTICE_EMAIL_SUBJECT = "Admin Notice - Telehealth";
+export const APPOINTMENT_REMINDER_MINUTES_BEFORE = 30;

@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Dashboard | Telehealth</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <script defer src="scripts/api_headers.js"></script>
+  <script defer src="scripts/appointment_details_modal.js"></script>
+  <script defer src="scripts/appointments.js"></script>
+  <script defer src="scripts/audit_logs.js"></script>
+  <script defer src="scripts/dashboard.js"></script>
+  <script defer src="scripts/earning_negotiation.js"></script>
+  <script defer src="scripts/login.js"></script>
+  <script defer src="scripts/missed_appointment_trigger.js"></script>
+  <script defer src="scripts/pagination_helper.js"></script>
+  <script defer src="scripts/send_notification.js"></script>
+  <script defer src="scripts/stats.js"></script>
+  <script defer src="scripts/user_details_modal.js"></script>
+  <script defer src="scripts/users.js"></script>
+
+  <script src="https://unpkg.com/heroicons@2.0.16/dist/24/outline.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-100">
+  
+  <!-- Login Form -->
+  <div id="login-container" class="flex items-center justify-center min-h-screen">
+    <form id="login-form" class="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-sm border border-blue-100">
+      <h2 class="text-3xl font-extrabold mb-6 text-center text-blue-900 tracking-tight">Admin Login</h2>
+      <div class="mb-4">
+        <label class="block mb-1 text-gray-700 font-semibold">Email</label>
+        <input id="login-email" type="email" required class="w-full border border-blue-200 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 transition" placeholder="admin@example.com">
+      </div>
+      <div class="mb-6">
+        <label class="block mb-1 text-gray-700 font-semibold">Password</label>
+        <input id="login-password" type="password" required class="w-full border border-blue-200 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 transition" placeholder="Password">
+      </div>
+      <button type="submit" class="w-full bg-blue-900 text-white py-2 rounded font-semibold hover:bg-blue-800 transition">Login</button>
+      <div id="login-error" class="text-red-600 mt-4 text-center hidden"></div>
+    </form>
+  </div>
+
+  <!-- Dashboard -->
+  <div id="dashboard-root" class="hidden">
+    <div class="flex flex-col md:flex-row min-h-screen">
+      <!-- Sidebar -->
+      <aside class="w-full md:w-64 bg-gradient-to-b from-blue-900 to-blue-700 text-white flex-shrink-0 shadow-xl z-10">
+        <div class="p-6 text-2xl font-extrabold tracking-wide border-b border-blue-800 text-center">Admin Dashboard</div>
+        <nav class="mt-8 flex flex-col gap-2">
+          <button class="sidebar-link px-6 py-3 text-left rounded-lg hover:bg-blue-800 focus:bg-blue-800 transition font-semibold" data-section="users">Users</button>
+          <button class="sidebar-link px-6 py-3 text-left rounded-lg hover:bg-blue-800 focus:bg-blue-800 transition font-semibold" data-section="appointments">Appointments</button>
+          <button class="sidebar-link px-6 py-3 text-left rounded-lg hover:bg-blue-800 focus:bg-blue-800 transition font-semibold" data-section="stats">Stats</button>
+          <button class="sidebar-link px-6 py-3 text-left rounded-lg hover:bg-blue-800 focus:bg-blue-800 transition font-semibold" data-section="notifications">Send Notification</button>
+          <button class="sidebar-link px-6 py-3 text-left rounded-lg hover:bg-blue-800 focus:bg-blue-800 transition font-semibold" data-section="auditlogs">Audit Logs</button>
+          <button class="sidebar-link px-6 py-3 text-left rounded-lg hover:bg-blue-800 focus:bg-blue-800 transition font-semibold" data-section="earning-negotiation">Earning Negotiation</button>
+          <button id="logout-btn" class="px-6 py-3 text-left rounded-lg hover:bg-blue-800 focus:bg-blue-800 transition text-red-300 font-semibold">Logout</button>
+        </nav>
+      </aside>
+      <!-- Main Content -->
+      <main class="flex-1 p-6 overflow-auto">
+        <div id="section-users" class="dashboard-section hidden">
+          <h2 class="text-2xl font-bold mb-6 text-blue-900">Users</h2>
+          <div class="mb-4 flex flex-wrap gap-2 items-center">
+            <input id="user-search" type="text" placeholder="Search users..." class="border border-blue-200 rounded px-3 py-2 w-48 focus:outline-none focus:ring-2 focus:ring-blue-400 transition">
+            <select id="user-role-filter" class="border border-blue-200 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 transition">
+              <option value="">All Roles</option>
+              <option value="doctor">Doctor</option>
+              <option value="patient">Patient</option>
+              <option value="admin">Admin</option>
+            </select>
+          </div>
+          <!-- User Details Modal -->
+          <div id="user-modal" class="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 hidden">
+            <div class="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md relative border border-blue-100">
+              <button id="close-user-modal" class="absolute top-2 right-2 text-gray-500 hover:text-red-500 text-2xl">&times;</button>
+              <h3 class="text-xl font-bold mb-4 text-blue-900">User Details</h3>
+              <div id="user-modal-content"></div>
+            </div>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="min-w-full bg-white rounded-xl shadow-lg border border-blue-100">
+              <thead>
+                <tr class="bg-blue-100 text-blue-900">
+                  <th class="py-2 px-4">Name</th>
+                  <th class="py-2 px-4">Email</th>
+                  <th class="py-2 px-4">Role</th>
+                  <th class="py-2 px-4">Status</th>
+                  <th class="py-2 px-4">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="users-table-body"></tbody>
+            </table>
+          </div>
+          <div id="users-pagination" class="mt-4 flex gap-2"></div>
+        </div>
+        <div id="section-appointments" class="dashboard-section hidden">
+          <h2 class="text-2xl font-bold mb-6 text-blue-900">Appointments</h2>
+          <div class="mb-4 flex flex-wrap gap-2 items-center">
+            <input id="appointment-doctor" type="text" placeholder="Doctor ID..." class="border border-blue-200 rounded px-3 py-2 w-40 focus:outline-none focus:ring-2 focus:ring-blue-400 transition">
+            <input id="appointment-patient" type="text" placeholder="Patient ID..." class="border border-blue-200 rounded px-3 py-2 w-40 focus:outline-none focus:ring-2 focus:ring-blue-400 transition">
+            <select id="appointment-status" class="border border-blue-200 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 transition">
+              <option value="">All Statuses</option>
+              <option value="requested">Requested</option>
+              <option value="accepted">Accepted</option>
+              <option value="completed">Completed</option>
+              <option value="cancelled">Cancelled</option>
+              <option value="missed">Missed</option>
+            </select>
+          </div>
+          <!-- Appointment Details Modal -->
+          <div id="appointment-modal" class="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 hidden">
+            <div class="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md relative border border-blue-100">
+              <button id="close-appointment-modal" class="absolute top-2 right-2 text-gray-500 hover:text-red-500 text-2xl">&times;</button>
+              <h3 class="text-xl font-bold mb-4 text-blue-900">Appointment Details</h3>
+              <div id="appointment-modal-content"></div>
+            </div>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="min-w-full bg-white rounded-xl shadow-lg border border-blue-100">
+              <thead>
+                <tr class="bg-blue-100 text-blue-900">
+                  <th class="py-2 px-4">Doctor</th>
+                  <th class="py-2 px-4">Patient</th>
+                  <th class="py-2 px-4">Date</th>
+                  <th class="py-2 px-4">Status</th>
+                </tr>
+              </thead>
+              <tbody id="appointments-table-body"></tbody>
+            </table>
+          </div>
+          <div id="appointments-pagination" class="mt-4 flex gap-2"></div>
+        </div>
+        <div id="section-stats" class="dashboard-section hidden">
+          <h2 class="text-2xl font-bold mb-6 text-blue-900">Usage Stats</h2>
+          <div class="flex flex-col md:flex-row gap-6 mb-6">
+            <div class="flex-1">
+              <div id="stats-cards" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+              <button id="trigger-missed-btn" class="mt-6 px-6 py-2 bg-red-600 text-white rounded-lg shadow hover:bg-red-700 transition font-semibold">Trigger Missed Appointments</button>
+              <div id="missed-result" class="mt-4 text-green-700 font-semibold hidden"></div>
+            </div>
+            <div class="flex-1 flex flex-col items-center justify-center">
+              <canvas id="stats-chart" class="w-full max-w-md h-64"></canvas>
+              <button id="export-stats-btn" class="mt-6 px-6 py-2 bg-blue-700 text-white rounded-lg shadow hover:bg-blue-800 transition font-semibold">Export Stats as CSV</button>
+            </div>
+          </div>
+        </div>
+        <div id="section-notifications" class="dashboard-section hidden">
+          <h2 class="text-2xl font-bold mb-6 text-blue-900">Send Notification</h2>
+          <form id="admin-notice-form" class="bg-white rounded-xl shadow-lg p-6 max-w-lg border border-blue-100">
+            <div class="mb-4">
+              <label class="block mb-1 font-semibold text-blue-900">Message</label>
+              <textarea id="admin-notice-message" required class="w-full border border-blue-200 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 transition" rows="3" placeholder="Enter your message..."></textarea>
+            </div>
+            <div class="mb-4">
+              <label class="block mb-1 font-semibold text-blue-900">Target</label>
+              <select id="admin-notice-target" class="border border-blue-200 rounded px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-blue-400 transition">
+                <option value="all">All Users</option>
+                <option value="doctor">All Doctors</option>
+                <option value="patient">All Patients</option>
+                <option value="custom">Specific User (by Email or User ID)</option>
+              </select>
+            </div>
+            <div class="mb-4 hidden" id="admin-notice-custom-user-group">
+              <label class="block mb-1 font-semibold text-blue-900">User Email or ID</label>
+              <input id="admin-notice-custom-user" type="text" class="w-full border border-blue-200 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 transition" placeholder="user@example.com or user id">
+            </div>
+            <button type="submit" class="bg-blue-900 text-white px-6 py-2 rounded font-semibold hover:bg-blue-800 transition">Send Notification</button>
+            <div id="admin-notice-result" class="mt-4 text-center font-semibold hidden"></div>
+          </form>
+        </div>
+        <div id="section-auditlogs" class="dashboard-section hidden">
+          <h2 class="text-2xl font-bold mb-6 text-blue-900">Audit Logs</h2>
+          <div class="overflow-x-auto">
+            <table class="min-w-full bg-white rounded-xl shadow-lg border border-blue-100">
+              <thead>
+                <tr class="bg-blue-100 text-blue-900">
+                  <th class="py-2 px-4">User</th>
+                  <th class="py-2 px-4">Action</th>
+                  <th class="py-2 px-4">Target</th>
+                  <th class="py-2 px-4">Details</th>
+                  <th class="py-2 px-4">Timestamp</th>
+                </tr>
+              </thead>
+              <tbody id="auditlogs-table-body"></tbody>
+            </table>
+          </div>
+          <div id="auditlogs-pagination" class="mt-4 flex gap-2"></div>
+        </div>
+        <div id="section-earning-negotiation" class="dashboard-section hidden">
+          <h2 class="text-2xl font-bold mb-6 text-blue-900">Doctor Earning Negotiation</h2>
+          <div class="mb-4 flex flex-wrap gap-2 items-center">
+            <select id="negotiation-status-filter" class="border border-blue-200 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 transition">
+              <option value="">All Statuses</option>
+              <option value="pending">Pending</option>
+              <option value="negotiating">Negotiating</option>
+              <option value="agreed">Agreed</option>
+            </select>
+          </div>
+          <!-- Negotiation Modal -->
+          <div id="negotiation-modal" class="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 hidden">
+            <div class="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-lg relative border border-blue-100">
+              <button id="close-negotiation-modal" class="absolute top-2 right-2 text-gray-500 hover:text-red-500 text-2xl">&times;</button>
+              <h3 class="text-xl font-bold mb-4 text-blue-900">Earning Negotiation</h3>
+              <div id="negotiation-modal-content"></div>
+            </div>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="min-w-full bg-white rounded-xl shadow-lg border border-blue-100">
+              <thead>
+                <tr class="bg-blue-100 text-blue-900">
+                  <th class="py-2 px-4">Name</th>
+                  <th class="py-2 px-4">Email</th>
+                  <th class="py-2 px-4">Proposed Fee</th>
+                  <th class="py-2 px-4">Currency</th>
+                  <th class="py-2 px-4">Status</th>
+                  <th class="py-2 px-4">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="negotiation-table-body"></tbody>
+            </table>
+          </div>
+          <div id="negotiation-pagination" class="mt-4 flex gap-2"></div>
+        </div>
+      </main>
+    </div>
+  </div>
+</body>
+</html> 
