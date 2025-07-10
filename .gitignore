@@ -77,3 +77,5 @@ yarn-error.log
 /ios/Pods
 /ios/Podfile.lock
 
+/backend/node_modules
+/backend/.env
