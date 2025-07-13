@@ -22,12 +22,15 @@ import { SCREENS } from '../../../Constants/Screens';
 import { RFPercentage } from 'react-native-responsive-fontsize';
 import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-native-responsive-screen';
 import Icon from 'react-native-vector-icons/MaterialIcons';
+import DatePicker from 'react-native-date-picker';
+import CheckBox from '@react-native-community/checkbox';
 
 import CustomDropDown from '../../../components/DropDown/CustomDropDown';
 import { Images } from '../../../assets/Images/images';
 import CameraBottomSheet from '../../../components/BottomSheets/CameraBottomSheet';
 import { useRef } from 'react';
-const CompleteProfile = React.memo(({ name, setName, gender, setGender, email, setEmail, password, setPassword, isDarkMode, handleNext, styles, navigation, image, cameraSheet_ref }) => {
+import authApi from '../../../services/authApi';
+const CompleteProfile = React.memo(({ name, setName, gender, setGender, email, setEmail, password, setPassword, isDarkMode, handleNext, styles, navigation, image, cameraSheet_ref, dob, setDob, consent, setConsent, userType, specialization, setSpecialization, qualifications, setQualifications, proposedFee, setProposedFee, currency, setCurrency }) => {
   const Genders = [
     'Male', 'Female', 'Others', 'Preferred not to say',
   ];
@@ -86,16 +89,56 @@ const CompleteProfile = React.memo(({ name, setName, gender, setGender, email, s
         secureTextEntry={true}
         onChangeText={setPassword}
       />
-      <Text style={styles.subText}>
-        By tapping "Next" you agree to our{' '}
-        <Text style={{ color: isDarkMode ? Colors.darkTheme.primaryColor : Colors.lightTheme.primaryColor }}>
-          Terms & Conditions
-        </Text>{' '}
-        and{' '}
-        <Text style={{ color: isDarkMode ? Colors.darkTheme.primaryColor : Colors.lightTheme.primaryColor }}>
-          Privacy Policy.
+      <TxtInput
+        placeholder={'Date of Birth (YYYY-MM-DD)'}
+        style={{ width: wp(88), marginBottom: hp(2.3) }}
+        containerStyle={{ paddingHorizontal: wp(3) }}
+        value={dob}
+        onChangeText={setDob}
+      />
+      {userType === 'doctor' && (
+        <>
+          <TxtInput
+            placeholder={'Specialization'}
+            style={{ width: wp(88), marginBottom: hp(2.3) }}
+            containerStyle={{ paddingHorizontal: wp(3) }}
+            value={specialization}
+            onChangeText={setSpecialization}
+          />
+          <TxtInput
+            placeholder={'Qualifications'}
+            style={{ width: wp(88), marginBottom: hp(2.3) }}
+            containerStyle={{ paddingHorizontal: wp(3) }}
+            value={qualifications}
+            onChangeText={setQualifications}
+          />
+          <TxtInput
+            placeholder={'Proposed Fee'}
+            style={{ width: wp(88), marginBottom: hp(2.3) }}
+            containerStyle={{ paddingHorizontal: wp(3) }}
+            value={proposedFee}
+            onChangeText={setProposedFee}
+            keyboardType="numeric"
+          />
+          <CustomDropDown
+            data={['PKR', 'USD']}
+            selectedValue={currency}
+            onValueChange={setCurrency}
+            placeholder="Select Currency..."
+            textStyle={{ color: isDarkMode ? Colors.darkTheme.primaryTextColor : Colors.lightTheme.primaryTextColor }}
+          />
+        </>
+      )}
+      <View style={{ flexDirection: 'row', alignItems: 'center', marginVertical: hp(1.5) }}>
+        <CheckBox
+          value={consent}
+          onValueChange={setConsent}
+          tintColors={{ true: isDarkMode ? Colors.darkTheme.primaryColor : Colors.lightTheme.primaryColor }}
+        />
+        <Text style={{ color: isDarkMode ? Colors.darkTheme.primaryTextColor : Colors.lightTheme.primaryTextColor }}>
+          I agree to the Terms & Conditions
         </Text>
-      </Text>
+      </View>
       <CustomButton
         containerStyle={styles.btn}
         text={'Next'}
@@ -166,7 +209,7 @@ const SignUp1 = React.memo(({ phone_no, setPhone_no, isDarkMode, handleSignUp, n
   );
 });
 
-const Signup = ({ navigation }) => {
+const Signup = ({ navigation, route }) => {
   const { isDarkMode } = useSelector((store) => store.theme);
   const { showAlert } = useAlert();
   const [name, setName] = useState('');
@@ -176,6 +219,13 @@ const Signup = ({ navigation }) => {
   const [phone_no, setPhone_no] = useState('');
   const [index, setIndex] = useState(0);
   const [image, setImage] = useState('');
+  const [dob, setDob] = useState('');
+  const [consent, setConsent] = useState(false);
+  const [specialization, setSpecialization] = useState('');
+  const [qualifications, setQualifications] = useState('');
+  const [proposedFee, setProposedFee] = useState('');
+  const [currency, setCurrency] = useState('PKR');
+  const userType = route?.params?.userType || 'patient';
 
   const cameraSheet_ref = useRef()
 
@@ -208,10 +258,29 @@ const Signup = ({ navigation }) => {
       showAlert('Password must be at least 8 characters long', 'error');
       return false;
     }
+    if (userType === 'patient') {
+      if (!dob || dob.length === 0) {
+        showAlert('Please Enter Date of Birth', 'error');
+        return false;
+      }
+    } else if (userType === 'doctor') {
+      if (!specialization || specialization.length === 0) {
+        showAlert('Please Enter Specialization', 'error');
+        return false;
+      }
+      if (!qualifications || qualifications.length === 0) {
+        showAlert('Please Enter Qualifications', 'error');
+        return false;
+      }
+      if (!proposedFee || proposedFee.length === 0) {
+        showAlert('Please Enter Proposed Fee', 'error');
+        return false;
+      }
+    }
 
 
     return true;
-  }, [name, gender, email, password, showAlert]);
+  }, [name, gender, email, password, dob, specialization, qualifications, proposedFee, showAlert, userType]);
   const validate2 = () => {
     if (!phone_no || phone_no.trim().length === 0) {
       showAlert('Please enter a phone number', 'error');
@@ -241,12 +310,40 @@ const Signup = ({ navigation }) => {
   }, [validate]);
 
 
-  const handleSignUp = useCallback(() => {
-    showAlert('Signed Up Successfully', 'success');
-    setTimeout(() => {
-      navigation.navigate(SCREENS.PROGRESS)
-    }, 2500);
-  }, [])
+  const handleSignUp = useCallback(async () => {
+    if (!validate2()) return;
+    if (!consent) {
+      showAlert('You must agree to the Terms & Conditions', 'error');
+      return;
+    }
+    try {
+      const payload = {
+        name,
+        gender,
+        email,
+        password,
+        phone: phone_no,
+        role: userType,
+        consent: true,
+        dob: userType === 'patient' ? dob : undefined,
+        specialization: userType === 'doctor' ? specialization : undefined,
+        qualifications: userType === 'doctor' ? qualifications : undefined,
+        proposedFee: userType === 'doctor' ? proposedFee : undefined,
+        currency: userType === 'doctor' ? currency : undefined,
+      };
+      const res = await authApi.register(payload);
+      if (res.data && res.data.success) {
+        showAlert('Signed Up Successfully', 'success');
+        setTimeout(() => {
+          navigation.navigate(SCREENS.PROGRESS);
+        }, 1500);
+      } else {
+        showAlert(res.data.message || 'Sign up failed', 'error');
+      }
+    } catch (err) {
+      showAlert(err.response?.data?.message || 'Sign up failed', 'error');
+    }
+  }, [name, gender, email, password, phone_no, showAlert, navigation, validate2, consent, dob, userType, specialization, qualifications, proposedFee, currency])
   const styles = StyleSheet.create({
     container: {
       flex: 1,
@@ -372,8 +469,20 @@ const Signup = ({ navigation }) => {
           styles={styles}
           navigation={navigation}
           image={image}
-          cameraSheet_ref = {cameraSheet_ref}
-
+          cameraSheet_ref={cameraSheet_ref}
+          dob={dob}
+          setDob={setDob}
+          consent={consent}
+          setConsent={setConsent}
+          userType={userType}
+          specialization={specialization}
+          setSpecialization={setSpecialization}
+          qualifications={qualifications}
+          setQualifications={setQualifications}
+          proposedFee={proposedFee}
+          setProposedFee={setProposedFee}
+          currency={currency}
+          setCurrency={setCurrency}
         />
       ) : (
         <SignUp1

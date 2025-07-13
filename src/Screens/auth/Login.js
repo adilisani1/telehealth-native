@@ -178,7 +178,8 @@ import {useAlert} from '../../Providers/AlertContext';
 import {SCREENS} from '../../Constants/Screens';
 import useBackHandler from '../../utils/useBackHandler';
 import {Svgs} from '../../assets/Svgs/Svg';
-import {loginUser} from '../../redux/Slices/authSlice';
+import authApi from '../../services/authApi';
+import { loginUser } from '../../redux/Slices/authSlice';
 import {CommonActions} from '@react-navigation/native';
 
 const Login = ({navigation, route}) => {
@@ -188,6 +189,7 @@ const Login = ({navigation, route}) => {
 
   const [value, setValue] = useState('');
   const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const userType = route?.params?.userType || 'patient';
 
@@ -292,75 +294,40 @@ const Login = ({navigation, route}) => {
     },
   });
 
-  const validate = () => {
+  const handleLogin = async () => {
     if (!value || value.length === 0) {
       showAlert('Please Enter email address', 'error');
-      return false;
+      return;
     }
     const isEmail = /\S+@\S+\.\S+/.test(value);
-    const isPhone = /^[+]?[0-9]{10,15}$/.test(value);
-
+    const isPhone = /^[+]?\d{10,15}$/.test(value);
     if (!isEmail && !isPhone) {
       showAlert('Please Enter valid email/phone number', 'error');
-      return false;
+      return;
     }
-
     if (!password || password.length === 0) {
       showAlert('Please Enter Password', 'error');
-      return false;
+      return;
     }
-    return true;
-  };
-
-  const handleLogin = async () => {
-    if (validate()) {
-      try {
-        const mockUserData = {
-          _id: '123456',
-          name: userType === 'doctor' ? 'Dr. John Smith' : 'John Doe',
-          email: value,
-          userType: userType,
-          ...(userType === 'doctor' && {
-            specialization: 'Cardiology',
-            experience: '10',
-            qualification: 'MBBS, MD',
-            consultationFee: '100',
-            isAvailable: true,
-          }),
-        };
-
-        dispatch(
-          loginUser({
-            user: mockUserData,
-            userType: userType,
-          }),
+    setLoading(true);
+    try {
+      const res = await authApi.login({ emailOrPhone: value, password });
+      if (res.data && res.data.token && res.data.user) {
+        dispatch(loginUser({ user: res.data.user, userType: res.data.user.role }));
+        showAlert('Login successful', 'success');
+        navigation.dispatch(
+          CommonActions.reset({
+            index: 0,
+            routes: [{ name: SCREENS.DASHBOARD }],
+          })
         );
-
-        showAlert(
-          `${userType === 'doctor' ? '' : ''} Login Successful`,
-          'success',
-        );
-
-        setTimeout(() => {
-          if (userType === 'doctor') {
-            navigation.dispatch(
-              CommonActions.reset({
-                index: 0,
-                routes: [{name: SCREENS.DOCTOR_DASHBOARD}],
-              }),
-            );
-          } else {
-            navigation.dispatch(
-              CommonActions.reset({
-                index: 0,
-                routes: [{name: SCREENS.DASHBOARD}],
-              }),
-            );
-          }
-        }, 1500);
-      } catch (error) {
-        showAlert('Login failed. Please try again.', 'error');
+      } else {
+        showAlert(res.data.message || 'Login failed', 'error');
       }
+    } catch (err) {
+      showAlert(err.response?.data?.message || 'Login failed', 'error');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -410,6 +377,7 @@ const Login = ({navigation, route}) => {
             },
           ]}
           onPress={handleLogin}
+          loading={loading}
         />
 
         <View
