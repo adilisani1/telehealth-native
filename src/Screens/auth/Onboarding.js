@@ -20,33 +20,32 @@ const Onboarding = ({navigation}) => {
   // 8:00 86% 
   
   const pages = [
-      {
-          image: Images.onboarding3,
-//          title: 'Talk to a Doctor',
-                    title: "Let's get started",
+    {
+      image: Images.onboarding3,
+      //          title: 'Talk to a Doctor',
+      title: "Let's get started",
 
-//          subtitle: 'Connects Patient with Doctor who shares their language and ethnicity',
-          subtitle: 'Swipe to wellness.',
-
-      },
-//      {
-//          image: Images.onboarding1,
-//          title: 'Call an ambulance',
-//          subtitle: 'Request for an ambulance 24/7 through MyDoctor app',
-//      },
-      {
-          image: Images.onboarding5,
-//          title: 'Schedule an appointment',
-          subtitle: 'Schedule an appointment with a certified doctor ',
-      },
+      //          subtitle: 'Connects Patient with Doctor who shares their language and ethnicity',
+      subtitle: 'Swipe to wellness.',
+    },
+    //      {
+    //          image: Images.onboarding1,
+    //          title: 'Call an ambulance',
+    //          subtitle: 'Request for an ambulance 24/7 through MyDoctor app',
+    //      },
+    {
+      image: Images.onboarding5,
+      //          title: 'Schedule an appointment',
+      subtitle: 'Schedule an appointment with a certified doctor ',
+    },
   ];
-  const [currentPage, setCurrentPage] = useState(0); 
-  const pagerRef = useRef(null); 
+  const [currentPage, setCurrentPage] = useState(0);
+  const pagerRef = useRef(null);
   const handleContinue = () => {
     if (currentPage < pages.length - 1) {
       pagerRef.current.setPage(currentPage + 1);
     } else {
-      navigation.navigate(SCREENS.WELCOME)
+      navigation.navigate(SCREENS.WELCOME);
     }
   };
   const lastPage = currentPage === pages.length - 1

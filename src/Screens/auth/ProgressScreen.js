@@ -27,7 +27,7 @@ const ProgressScreen = () => {
           clearInterval(interval);
           // Navigate to the next screen after completion
           setTimeout(() => {
-            navigation.navigate(SCREENS.DASHBOARD); // Replace 'NextScreen' with your actual screen name
+            navigation.navigate(SCREENS.DASHBOARD); 
           }, 500);
           return prev;
         }
