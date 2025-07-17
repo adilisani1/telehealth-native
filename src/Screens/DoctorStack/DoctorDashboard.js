@@ -45,6 +45,7 @@ const DoctorDashboard = ({navigation}) => {
     newPatients: 3, // New patients this week
     activePatients: 42, // Currently active patients
   });
+  const [todaysAppointments, setTodaysAppointments] = useState([]);
 
   const theme = isDarkMode ? Colors.darkTheme : Colors.lightTheme;
 
@@ -73,13 +74,23 @@ const DoctorDashboard = ({navigation}) => {
       const token = await getToken();
       if (token) {
         const upcomingRes = await getDoctorUpcomingAppointments(token);
-        const upcomingCount = Array.isArray(upcomingRes?.data?.appointments)
-          ? upcomingRes.data.appointments.length
-          : 0;
+        const upcomingAppointments = Array.isArray(upcomingRes?.data?.appointments)
+          ? upcomingRes.data.appointments
+          : [];
         setDashboardStats(prev => ({
           ...prev,
-          upcomingAppointments: upcomingCount,
+          upcomingAppointments: upcomingAppointments.length,
         }));
+
+        // Filter today's appointments
+        const today = new Date();
+        const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0, 0);
+        const todayEnd = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
+        const todays = upcomingAppointments.filter(a => {
+          const apptDate = new Date(a.date);
+          return apptDate >= todayStart && apptDate <= todayEnd;
+        });
+        setTodaysAppointments(todays);
       }
     } catch (e) {
       console.error('Failed to fetch upcoming appointments:', e);
@@ -427,20 +438,26 @@ const DoctorDashboard = ({navigation}) => {
         </View>
 
         <Text style={styles.sectionTitle}>Today's Appointments</Text>
-        <View style={styles.appointmentCard}>
-          <View style={styles.appointmentHeader}>
-            <View>
-              <Text style={styles.patientName}>John Doe</Text>
-              <Text style={styles.appointmentTime}>10:00 AM</Text>
-              <Text style={styles.appointmentType}>Video Consultation</Text>
+        {todaysAppointments.length === 0 ? (
+          <Text style={{ color: theme.secondryTextColor, fontFamily: Fonts.Regular, fontSize: RFPercentage(2) }}>No appointments for today.</Text>
+        ) : (
+          todaysAppointments.map((appt, idx) => (
+            <View style={styles.appointmentCard} key={appt._id || idx}>
+              <View style={styles.appointmentHeader}>
+                <View>
+                  <Text style={styles.patientName}>{appt.patient?.name || 'Unknown'}</Text>
+                  <Text style={styles.appointmentTime}>{appt.date ? new Date(appt.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}</Text>
+                  <Text style={styles.appointmentType}>{appt.type || 'Consultation'}</Text>
+                </View>
+                <TouchableOpacity
+                  style={styles.joinButton}
+                  onPress={() => navigation.navigate(SCREENS.CALL, { appointmentId: appt._id })}>
+                  <Text style={styles.joinButtonText}>Join Call</Text>
+                </TouchableOpacity>
+              </View>
             </View>
-            <TouchableOpacity
-              style={styles.joinButton}
-              onPress={() => navigation.navigate(SCREENS.CALL)}>
-              <Text style={styles.joinButtonText}>Join Call</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
+          ))
+        )}
       </ScrollView>
     </SafeAreaView>
   );
