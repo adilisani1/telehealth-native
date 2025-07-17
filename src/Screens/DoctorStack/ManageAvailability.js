@@ -1,4 +1,6 @@
 import React, {useState} from 'react';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { TextInput, Alert } from 'react-native';
 import {
   View,
   Text,
@@ -19,6 +21,8 @@ import {Fonts} from '../../Constants/Fonts';
 import StackHeader from '../../components/Header/StackHeader';
 import CustomButton from '../../components/Buttons/customButton';
 import {useAlert} from '../../Providers/AlertContext';
+import { updateDoctorAvailability } from '../../services/doctorService';
+import { getToken } from '../../utils/tokenStorage';
 
 const ManageAvailability = ({navigation}) => {
   const {isDarkMode} = useSelector(store => store.theme);
@@ -26,14 +30,18 @@ const ManageAvailability = ({navigation}) => {
   const theme = isDarkMode ? Colors.darkTheme : Colors.lightTheme;
 
   const [availability, setAvailability] = useState({
-    monday: {enabled: true, startTime: '09:00', endTime: '17:00'},
-    tuesday: {enabled: true, startTime: '09:00', endTime: '17:00'},
-    wednesday: {enabled: true, startTime: '09:00', endTime: '17:00'},
-    thursday: {enabled: true, startTime: '09:00', endTime: '17:00'},
-    friday: {enabled: true, startTime: '09:00', endTime: '17:00'},
-    saturday: {enabled: false, startTime: '09:00', endTime: '17:00'},
-    sunday: {enabled: false, startTime: '09:00', endTime: '17:00'},
+    monday: { enabled: true, slots: [{ start: '09:00', end: '10:00' }] },
+    tuesday: { enabled: true, slots: [{ start: '09:00', end: '10:00' }] },
+    wednesday: { enabled: true, slots: [{ start: '09:00', end: '10:00' }] },
+    thursday: { enabled: true, slots: [{ start: '09:00', end: '10:00' }] },
+    friday: { enabled: true, slots: [{ start: '09:00', end: '10:00' }] },
+    saturday: { enabled: false, slots: [] },
+    sunday: { enabled: false, slots: [] },
   });
+  const [timezone, setTimezone] = useState(Intl?.DateTimeFormat().resolvedOptions().timeZone || '');
+  const [picker, setPicker] = useState({ visible: false, day: null, idx: null, field: null });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   const days = [
     'monday',
@@ -61,56 +69,142 @@ const ManageAvailability = ({navigation}) => {
       [day]: {
         ...prev[day],
         enabled: !prev[day].enabled,
+        slots: !prev[day].enabled && prev[day].slots.length === 0 ? [{ start: '09:00', end: '10:00' }] : prev[day].slots,
       },
     }));
   };
 
-  const handleSave = () => {
-    // Save availability settings
-    console.log('Saving availability:', availability);
-    showAlert('Availability updated successfully', 'success');
-    navigation.goBack();
+  const addSession = day => {
+    setAvailability(prev => ({
+      ...prev,
+      [day]: {
+        ...prev[day],
+        slots: [...prev[day].slots, { start: '09:00', end: '10:00' }],
+      },
+    }));
   };
 
-  const DayCard = ({day}) => (
-    <View style={[styles.dayCard, {backgroundColor: theme.secondryColor}]}>
+  const removeSession = (day, idx) => {
+    setAvailability(prev => ({
+      ...prev,
+      [day]: {
+        ...prev[day],
+        slots: prev[day].slots.filter((_, i) => i !== idx),
+      },
+    }));
+  };
+
+  const updateSession = (day, idx, field, value) => {
+    setAvailability(prev => ({
+      ...prev,
+      [day]: {
+        ...prev[day],
+        slots: prev[day].slots.map((slot, i) =>
+          i === idx ? { ...slot, [field]: value } : slot
+        ),
+      },
+    }));
+  };
+
+  const showTimePicker = (day, idx, field) => {
+    setPicker({
+      visible: true,
+      day,
+      idx,
+      field,
+      // Pass the current value for the picker
+      value: availability[day].slots[idx][field],
+    });
+  };
+
+  const onTimeChange = (event, selectedDate) => {
+    if (event.type === 'dismissed' || !selectedDate) {
+      setPicker({ visible: false, day: null, idx: null, field: null });
+      return;
+    }
+    const hours = selectedDate.getHours().toString().padStart(2, '0');
+    const minutes = selectedDate.getMinutes().toString().padStart(2, '0');
+    const time = `${hours}:${minutes}`;
+    updateSession(picker.day, picker.idx, picker.field, time);
+    setPicker({ visible: false, day: null, idx: null, field: null });
+  };
+
+  const handleSave = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      // Convert to backend format: [{ day: 'Monday', slots: ['09:00-10:00', ...] }, ...]
+      const availabilityArray = Object.keys(availability).map(dayKey => ({
+        day: dayNames[dayKey],
+        slots: availability[dayKey].enabled
+          ? availability[dayKey].slots
+              .filter(slot => slot.start && slot.end)
+              .map(slot => `${slot.start}-${slot.end}`)
+          : [],
+      }));
+      if (!timezone) throw new Error('Timezone is required');
+      const token = await getToken();
+      await updateDoctorAvailability(token, availabilityArray, timezone);
+      showAlert('Availability updated successfully', 'success');
+      navigation.goBack();
+    } catch (e) {
+      setError(e?.message || 'Failed to update availability.');
+      showAlert(e?.message || 'Failed to update availability.', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const DayCard = ({ day }) => (
+    <View style={[styles.dayCard, { backgroundColor: theme.secondryColor }]}> 
       <View style={styles.dayHeader}>
-        <Text style={[styles.dayName, {color: theme.primaryTextColor}]}>
+        <Text style={[styles.dayName, { color: theme.primaryTextColor }]}>
           {dayNames[day]}
         </Text>
         <Switch
           value={availability[day].enabled}
           onValueChange={() => toggleDay(day)}
-          trackColor={{false: '#767577', true: theme.primaryColor}}
+          trackColor={{ false: '#767577', true: theme.primaryColor }}
           thumbColor={availability[day].enabled ? Colors.white : '#f4f3f4'}
         />
       </View>
-
       {availability[day].enabled && (
-        <View style={styles.timeContainer}>
-          <View style={styles.timeSlot}>
-            <Text style={[styles.timeLabel, {color: theme.secondryTextColor}]}>
-              Start Time
-            </Text>
-            <TouchableOpacity
-              style={[styles.timeButton, {borderColor: theme.BorderGrayColor}]}>
-              <Text style={[styles.timeText, {color: theme.primaryTextColor}]}>
-                {availability[day].startTime}
-              </Text>
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.timeSlot}>
-            <Text style={[styles.timeLabel, {color: theme.secondryTextColor}]}>
-              End Time
-            </Text>
-            <TouchableOpacity
-              style={[styles.timeButton, {borderColor: theme.BorderGrayColor}]}>
-              <Text style={[styles.timeText, {color: theme.primaryTextColor}]}>
-                {availability[day].endTime}
-              </Text>
-            </TouchableOpacity>
-          </View>
+        <View>
+          {availability[day].slots.map((slot, idx) => (
+            <View key={idx} style={[styles.timeContainer, { alignItems: 'center' }]}> 
+              <View style={styles.timeSlot}>
+                <Text style={[styles.timeLabel, { color: theme.secondryTextColor }]}>Start Time</Text>
+                <TouchableOpacity
+                  style={[styles.timeButton, { borderColor: theme.BorderGrayColor }]}
+                  onPress={() => showTimePicker(day, idx, 'start')}
+                >
+                  <Text style={[styles.timeText, { color: theme.primaryTextColor }]}>{slot.start}</Text>
+                </TouchableOpacity>
+              </View>
+              <View style={styles.timeSlot}>
+                <Text style={[styles.timeLabel, { color: theme.secondryTextColor }]}>End Time</Text>
+                <TouchableOpacity
+                  style={[styles.timeButton, { borderColor: theme.BorderGrayColor }]}
+                  onPress={() => showTimePicker(day, idx, 'end')}
+                >
+                  <Text style={[styles.timeText, { color: theme.primaryTextColor }]}>{slot.end}</Text>
+                </TouchableOpacity>
+              </View>
+              <TouchableOpacity
+                style={{ marginLeft: 8, marginTop: 18 }}
+                onPress={() => removeSession(day, idx)}
+                disabled={availability[day].slots.length === 1}
+              >
+                <Text style={{ color: Colors.error, fontSize: RFPercentage(2) }}>Remove</Text>
+              </TouchableOpacity>
+            </View>
+          ))}
+          <TouchableOpacity
+            style={{ marginTop: 8, alignSelf: 'flex-start' }}
+            onPress={() => addSession(day)}
+          >
+            <Text style={{ color: theme.primaryColor, fontFamily: Fonts.Medium, fontSize: RFPercentage(1.8) }}>+ Add Session</Text>
+          </TouchableOpacity>
         </View>
       )}
     </View>
@@ -200,20 +294,59 @@ const ManageAvailability = ({navigation}) => {
         style={styles.scrollContainer}
         contentContainerStyle={{paddingBottom: hp(5)}}>
         <Text style={styles.title}>Set Your Weekly Schedule</Text>
+        <View style={{ marginBottom: hp(2) }}>
+          <Text style={{ color: theme.primaryTextColor, fontFamily: Fonts.Medium, fontSize: RFPercentage(2) }}>Timezone</Text>
+          <TextInput
+            style={{
+              borderWidth: 1,
+              borderColor: theme.BorderGrayColor,
+              borderRadius: wp(2),
+              padding: wp(3),
+              color: theme.primaryTextColor,
+              fontFamily: Fonts.Medium,
+              marginTop: 4,
+            }}
+            value={timezone}
+            onChangeText={setTimezone}
+            placeholder="e.g. Asia/karachi"
+            autoCapitalize="none"
+          />
+        </View>
 
         {days.map(day => (
           <DayCard key={day} day={day} />
         ))}
 
         <View style={styles.buttonContainer}>
+          {error ? (
+            <Text style={{ color: Colors.error, marginBottom: hp(1), fontFamily: Fonts.Medium }}>{error}</Text>
+          ) : null}
           <TouchableOpacity
-            style={styles.saveAvailabilityButton}
-            onPress={handleSave}>
+            style={[styles.saveAvailabilityButton, loading && { opacity: 0.6 }]}
+            onPress={handleSave}
+            disabled={loading}
+          >
             <Text style={styles.saveAvailabilityButtonText}>
-              Save Availability
+              {loading ? 'Saving...' : 'Save Availability'}
             </Text>
           </TouchableOpacity>
         </View>
+      {picker.visible && (
+        <DateTimePicker
+          value={(() => {
+            // Try to parse the current value, fallback to 09:00
+            if (picker.value && /^\d{2}:\d{2}$/.test(picker.value)) {
+              const [h, m] = picker.value.split(':');
+              return new Date(0, 0, 0, parseInt(h, 10), parseInt(m, 10));
+            }
+            return new Date(0, 0, 0, 9, 0);
+          })()}
+          mode="time"
+          is24Hour={true}
+          display="default"
+          onChange={onTimeChange}
+        />
+      )}
       </ScrollView>
     </SafeAreaView>
   );

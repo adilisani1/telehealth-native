@@ -1,3 +1,17 @@
+export const updateDoctorAvailability = async (token, availability, timezone) => {
+  try {
+    const response = await doctorApi.put(
+      '/api/doctor/availability',
+      { availability, timezone },
+      {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      }
+    );
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
 export const getDoctorCancelledAppointments = async (token) => {
   try {
     const response = await doctorApi.get('/api/doctor/appointments/cancelled', {
