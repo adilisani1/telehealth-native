@@ -18,65 +18,89 @@ import {Colors} from '../../Constants/themeColors';
 import {Fonts} from '../../Constants/Fonts';
 import {SCREENS} from '../../Constants/Screens';
 import StackHeader from '../../components/Header/StackHeader';
+import { useEffect, useCallback } from 'react';
+import { getDoctorUpcomingAppointments, getDoctorCompletedAppointments, getDoctorAppointmentHistory, getDoctorCancelledAppointments } from '../../services/doctorService';
+import { getToken } from '../../utils/tokenStorage';
 
 const DoctorAppointments = ({navigation}) => {
   const {isDarkMode} = useSelector(store => store.theme);
   const theme = isDarkMode ? Colors.darkTheme : Colors.lightTheme;
 
-  const [selectedTab, setSelectedTab] = useState('upcoming');
-  const [appointments] = useState({
-    upcoming: [
-      {
-        id: 1,
-        patientName: 'John Doe',
-        time: '10:00 AM',
-        date: 'Today',
-        type: 'Video Call',
-        status: 'confirmed',
-      },
-      {
-        id: 2,
-        patientName: 'Jane Smith',
-        time: '2:00 PM',
-        date: 'Tomorrow',
-        type: 'Video Call',
-        status: 'pending',
-      },
-    ],
-    completed: [
-      {
-        id: 3,
-        patientName: 'Mike Johnson',
-        time: '9:00 AM',
-        date: 'Yesterday',
-        type: 'Video Call',
-        status: 'completed',
-      },
-    ],
-    cancelled: [
-      {
-        id: 4,
-        patientName: 'Sarah Wilson',
-        time: '3:00 PM',
-        date: 'Jan 10',
-        type: 'Video Call',
-        status: 'cancelled',
-      },
-    ],
+  const React = require('react');
+  const [selectedTab, setSelectedTab] = React.useState('upcoming');
+  const [appointments, setAppointments] = React.useState({
+    upcoming: [],
+    completed: [],
+    cancelled: [],
   });
+  const [loading, setLoading] = React.useState(false);
+  const [error, setError] = React.useState('');
+
+  const mapAppointment = (a) => {
+    console.log('Mapping appointment:', a);
+    return {
+      id: a._id,
+      patientName: a.patient?.name || 'Unknown',
+      time: a.date ? new Date(a.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '',
+      date: a.date ? new Date(a.date).toLocaleDateString() : '',
+      type: a.type || 'Consultation',
+      status: a.status || '',
+    };
+  };
+
+  const fetchAppointments = useCallback(async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const token = await getToken();
+      if (!token) {
+        setError('You are not authorized. Please log in again.');
+        setLoading(false);
+        return;
+      }
+      const [upcomingRes, _dashboardRes, historyRes, cancelledRes] = await Promise.all([
+        getDoctorUpcomingAppointments(token),
+        getDoctorCompletedAppointments(token), // still fetched, but not used for completed tab
+        getDoctorAppointmentHistory(token),
+        getDoctorCancelledAppointments(token),
+      ]);
+      // ...existing code...
+      const upcoming = Array.isArray(upcomingRes?.data?.appointments)
+        ? upcomingRes.data.appointments.map(mapAppointment)
+        : [];
+      const completed = Array.isArray(historyRes?.data?.appointments)
+        ? historyRes.data.appointments.filter(a => a.status === 'completed').map(mapAppointment)
+        : Array.isArray(historyRes)
+        ? historyRes.filter(a => a.status === 'completed').map(mapAppointment)
+        : [];
+      const cancelled = Array.isArray(cancelledRes?.data?.appointments)
+        ? cancelledRes.data.appointments.map(mapAppointment)
+        : [];
+      setAppointments({
+        upcoming,
+        completed,
+        cancelled,
+      });
+    } catch (e) {
+      setError(
+        e?.message === 'Not authorized, no token'
+          ? 'You are not authorized. Please log in again.'
+          : 'Network error: Unable to fetch appointments. Please check your connection or API base URL.'
+      );
+      console.error('Error fetching appointments:', e);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchAppointments();
+  }, [fetchAppointments]);
 
   const tabs = [
     {key: 'upcoming', label: 'Upcoming', count: appointments.upcoming.length},
-    {
-      key: 'completed',
-      label: 'Completed',
-      count: appointments.completed.length,
-    },
-    {
-      key: 'cancelled',
-      label: 'Cancelled',
-      count: appointments.cancelled.length,
-    },
+    {key: 'completed', label: 'Completed', count: appointments.completed.length},
+    {key: 'cancelled', label: 'Cancelled', count: appointments.cancelled.length},
   ];
 
   const getStatusColor = status => {
@@ -253,20 +277,28 @@ const DoctorAppointments = ({navigation}) => {
       </View>
 
       {/* Appointments List */}
-      <FlatList
-        data={appointments[selectedTab]}
-        keyExtractor={item => item.id.toString()}
-        renderItem={({item}) => <AppointmentCard item={item} />}
-        contentContainerStyle={styles.listContainer}
-        showsVerticalScrollIndicator={false}
-        ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>
-              No {selectedTab} appointments found
-            </Text>
-          </View>
-        }
-      />
+      {error ? (
+        <View style={styles.emptyContainer}>
+          <Text style={[styles.emptyText, {color: Colors.error}]}>{error}</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={appointments[selectedTab]}
+          keyExtractor={item => item._id || item.id?.toString()}
+          renderItem={({item}) => <AppointmentCard item={item} />}
+          contentContainerStyle={styles.listContainer}
+          showsVerticalScrollIndicator={false}
+          refreshing={loading}
+          onRefresh={fetchAppointments}
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>
+                {loading ? 'Loading...' : `No ${selectedTab} appointments found`}
+              </Text>
+            </View>
+          }
+        />
+      )}
     </SafeAreaView>
   );
 };

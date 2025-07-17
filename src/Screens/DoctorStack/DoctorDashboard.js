@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import {useSelector, useDispatch} from 'react-redux';
 import { getProfile } from '../../services/authApi';
+import { getDoctorUpcomingAppointments } from '../../services/doctorService';
 import axios from 'axios';
 import { setUser, logoutUser } from '../../redux/Slices/authSlice';
 import { getToken, removeToken } from '../../utils/tokenStorage';
@@ -35,7 +36,7 @@ const DoctorDashboard = ({navigation}) => {
 
   const [refreshing, setRefreshing] = useState(false);
   const [dashboardStats, setDashboardStats] = useState({
-    todayAppointments: 5,
+    upcomingAppointments: 0,
     totalPatients: 45,
     todayEarnings: 320,
     monthlyEarnings: 8500,
@@ -68,7 +69,21 @@ const DoctorDashboard = ({navigation}) => {
   }
 
   const fetchDashboardData = async () => {
-    console.log('Fetching dashboard data...');
+    try {
+      const token = await getToken();
+      if (token) {
+        const upcomingRes = await getDoctorUpcomingAppointments(token);
+        const upcomingCount = Array.isArray(upcomingRes?.data?.appointments)
+          ? upcomingRes.data.appointments.length
+          : 0;
+        setDashboardStats(prev => ({
+          ...prev,
+          upcomingAppointments: upcomingCount,
+        }));
+      }
+    } catch (e) {
+      console.error('Failed to fetch upcoming appointments:', e);
+    }
   };
 
   const onRefresh = async () => {
@@ -333,9 +348,9 @@ const DoctorDashboard = ({navigation}) => {
 
         <View style={styles.statsContainer}>
           <StatCard
-            title="Today's Appointments"
-            value={dashboardStats.todayAppointments}
-            icon="calendar-today"
+            title="Upcoming Appointments"
+            value={dashboardStats.upcomingAppointments}
+            icon="calendar-clock"
             color={theme.primaryColor}
             onPress={() => navigation.navigate(SCREENS.DOCTOR_APPOINTMENTS)}
           />

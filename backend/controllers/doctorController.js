@@ -1,3 +1,23 @@
+// 9. View all cancelled appointments for the doctor
+export const getCancelledAppointments = async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+    const total = await Appointment.countDocuments({ doctor: req.user._id, status: 'cancelled' });
+    const appointments = await Appointment.find({
+      doctor: req.user._id,
+      status: 'cancelled'
+    })
+      .populate('patient', 'name email gender dob healthInfo')
+      .sort({ date: -1 })
+      .skip(skip)
+      .limit(limit);
+    res.json({ success: true, data: { appointments, total, page, pages: Math.ceil(total / limit) }, message: 'Cancelled appointments fetched successfully' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
 import User from '../models/User.js';
 import Appointment from '../models/Appointment.js';
 import Prescription from '../models/Prescription.js';

@@ -1,3 +1,4 @@
+
 import express from 'express';
 import { protect, authorizeRoles } from '../middleware/authMiddleware.js';
 import {
@@ -10,11 +11,13 @@ import {
   addConsultationNotes,
   getPublicDoctorProfile,
   getMyEarningNegotiation,
-  postMyEarningNegotiationMessage
+  postMyEarningNegotiationMessage,
+  getCancelledAppointments
 } from '../controllers/doctorController.js';
 import { body } from 'express-validator';
 
 const router = express.Router();
+router.get('/appointments/cancelled', protect, authorizeRoles('doctor'), getCancelledAppointments);
 
 router.get('/dashboard', protect, authorizeRoles('doctor'), getDashboard);
 router.get('/appointments/upcoming', protect, authorizeRoles('doctor'), getUpcomingAppointments);
