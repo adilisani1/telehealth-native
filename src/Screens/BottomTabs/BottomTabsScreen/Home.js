@@ -158,6 +158,8 @@ const hospitals = [
 
 const Home = ({navigation}) => {
   const {isDarkMode} = useSelector(store => store.theme);
+  const { User: reduxUser } = useSelector(store => store.auth) || {};
+  const User = reduxUser || {};
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Doctors');
   const [flatlistArray, setFlatListArray] = useState(doctors);
@@ -279,9 +281,12 @@ const Home = ({navigation}) => {
       {/* Header */}
       <View style={styles.rowView}>
         <View style={styles.header}>
-          <Image source={Images.dr1} style={styles.doctorImage} />
+          <Image
+            source={User?.profileImage ? { uri: User.profileImage } : Images.dr1}
+            style={styles.doctorImage}
+          />
           <View>
-            <Text style={styles.greeting}>Hi, Adil</Text>
+            <Text style={styles.greeting}>Hi, {User?.name || 'User'}</Text>
             <Text style={styles.subGreeting}>How are you today?</Text>
           </View>
         </View>

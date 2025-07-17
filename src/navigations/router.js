@@ -37,6 +37,7 @@ import {Colors} from '../Constants/themeColors';
 
 const Router = () => {
   const {userId, userType} = useSelector(state => state.auth);
+  console.log('Router.js Redux state:', { userId, userType });
   const {isDarkMode} = useSelector(store => store.theme);
 
   // Function to determine which stack to render

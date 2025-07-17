@@ -6,17 +6,9 @@ import {SCREENS} from '../Constants/Screens';
 export const useLogout = () => {
   const dispatch = useDispatch();
 
-  const logout = (navigation = null) => {
+  const logout = () => {
     dispatch(logoutUser());
-
-    if (navigation) {
-      navigation.dispatch(
-        CommonActions.reset({
-          index: 0,
-          routes: [{name: SCREENS.ONBOARDING}],
-        }),
-      );
-    }
+    // No navigation reset here; Router will switch stack based on Redux state
   };
 
   return logout;

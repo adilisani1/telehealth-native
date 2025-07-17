@@ -9,7 +9,11 @@ import {
   TouchableOpacity,
   RefreshControl,
 } from 'react-native';
-import {useSelector} from 'react-redux';
+import {useSelector, useDispatch} from 'react-redux';
+import { getProfile } from '../../services/authApi';
+import axios from 'axios';
+import { setUser, logoutUser } from '../../redux/Slices/authSlice';
+import { getToken, removeToken } from '../../utils/tokenStorage';
 import {RFPercentage} from 'react-native-responsive-fontsize';
 import {
   widthPercentageToDP as wp,
@@ -26,6 +30,7 @@ import {useLogout} from '../../utils/authUtils';
 const DoctorDashboard = ({navigation}) => {
   const {isDarkMode} = useSelector(store => store.theme);
   const {User} = useSelector(store => store.auth);
+  const dispatch = useDispatch();
   const logout = useLogout();
 
   const [refreshing, setRefreshing] = useState(false);
@@ -42,9 +47,25 @@ const DoctorDashboard = ({navigation}) => {
 
   const theme = isDarkMode ? Colors.darkTheme : Colors.lightTheme;
 
+
   useEffect(() => {
     fetchDashboardData();
+    fetchAndUpdateUserProfile();
   }, []);
+
+  const fetchAndUpdateUserProfile = async () => {
+    try {
+      const token = await getToken();
+      if (token) {
+        const res = await getProfile(token);
+        if (res?.data?.data) {
+          dispatch(setUser(res.data.data));
+        }
+      }
+    } catch (e) {
+      console.error('Failed to fetch user profile:', e);
+    }
+  }
 
   const fetchDashboardData = async () => {
     console.log('Fetching dashboard data...');
@@ -56,8 +77,23 @@ const DoctorDashboard = ({navigation}) => {
     setRefreshing(false);
   };
 
-  const handleLogout = () => {
-    logout(navigation);
+  const handleLogout = async () => {
+    try {
+      const token = await getToken();
+      // Optionally, send device token if available
+      await axios.post(
+        'https://mrvwhr8v-5000.inc1.devtunnels.ms/api/user/logout',
+        {},
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+    } catch (error) {
+      console.error('Logout API error:', error);
+    }
+    await removeToken();
+    dispatch(logoutUser());
+    navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
   };
 
   // Enhanced stat card with different actions

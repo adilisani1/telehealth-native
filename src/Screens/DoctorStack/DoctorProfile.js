@@ -137,7 +137,7 @@ const DoctorProfile = ({navigation}) => {
       onPress={() =>
         item.button ? item.action() : navigation.navigate(item.screen)
       }>
-      {item.id === '6' ? (
+      {item.icon === 'help-circle-outline' ? (
         <MaterialCommunityIcons
           name={item.icon}
           size={RFPercentage(3.2)}
@@ -207,7 +207,7 @@ const DoctorProfile = ({navigation}) => {
     {
       id: '6',
       name: 'Help Center',
-      icon: 'help-outline',
+      icon: 'help-circle-outline',
       screen: SCREENS.HELPCENTER,
     },
     {
@@ -260,7 +260,6 @@ const DoctorProfile = ({navigation}) => {
         <TouchableOpacity style={styles.editIcon}>
           <Icon name="edit" size={RFPercentage(2)} color={Colors.white} />
         </TouchableOpacity>
-        <Text style={styles.profileName}>Dr. {User?.name || 'John Smith'}</Text>
         <Text style={styles.specialization}>
           {User?.specialization || 'Cardiologist'}
         </Text>

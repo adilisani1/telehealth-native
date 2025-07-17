@@ -27,12 +27,14 @@ const authSlice = createSlice({
       state.userType = userType;
       state.userId = user._id || user.id;
       state.isAuthenticated = true;
+      state.justLoggedIn = true;
     },
     logoutUser: state => {
       state.User = {};
       state.userType = '';
       state.userId = '';
       state.isAuthenticated = false;
+      state.justLoggedIn = false;
     },
   },
 });

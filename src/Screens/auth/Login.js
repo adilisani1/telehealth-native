@@ -181,17 +181,22 @@ import {Svgs} from '../../assets/Svgs/Svg';
 import authApi from '../../services/authApi';
 import { loginUser } from '../../redux/Slices/authSlice';
 import {CommonActions} from '@react-navigation/native';
+import { useEffect } from 'react';
+import { navigationRef } from '../../utils/navigationRef';
 
 const Login = ({navigation, route}) => {
   const {isDarkMode} = useSelector(store => store.theme);
   const {showAlert} = useAlert();
   const dispatch = useDispatch();
 
+  const { userId, userType } = useSelector(state => state.auth);
+
   const [value, setValue] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const userType = route?.params?.userType || 'patient';
+  // Use routeUserType for UI, userType from Redux for navigation logic
+  const routeUserType = route?.params?.userType || 'patient';
 
   useBackHandler(() => {
     // navigation.goBack()
@@ -295,6 +300,8 @@ const Login = ({navigation, route}) => {
   });
 
   const handleLogin = async () => {
+    console.log('handleLogin called');
+  console.log('Login.js component rendered');
     if (!value || value.length === 0) {
       showAlert('Please Enter email address', 'error');
       return;
@@ -312,24 +319,36 @@ const Login = ({navigation, route}) => {
     setLoading(true);
     try {
       const res = await authApi.login({ emailOrPhone: value, password });
-      if (res.data && res.data.token && res.data.user) {
-        dispatch(loginUser({ user: res.data.user, userType: res.data.user.role }));
+      console.log('Login.js full API response:', res);
+      const user = res.data?.data?.user;
+      const token = res.data?.data?.token;
+      if (user && token) {
+        console.log('Login.js user:', user);
+        const loginPayload = { user, userType: user.role };
+        console.log('Login.js loginUser payload:', loginPayload);
+        dispatch(loginUser(loginPayload));
+        // Store token in AsyncStorage
+        try {
+          const { storeToken } = await import('../../utils/tokenStorage');
+          await storeToken(token);
+        } catch (e) {
+          console.error('Failed to store token:', e);
+        }
         showAlert('Login successful', 'success');
-        navigation.dispatch(
-          CommonActions.reset({
-            index: 0,
-            routes: [{ name: SCREENS.DASHBOARD }],
-          })
-        );
+        // Navigation is now handled by the root navigator (Router.js) based on Redux state.
+        // No need to call navigation.reset here.
       } else {
+        console.log('Login.js login failed, res.data:', res.data);
         showAlert(res.data.message || 'Login failed', 'error');
       }
     } catch (err) {
+      console.log('Login.js login error:', err);
       showAlert(err.response?.data?.message || 'Login failed', 'error');
     } finally {
       setLoading(false);
     }
   };
+
 
   return (
     <SafeAreaView style={styles.container}>
@@ -365,9 +384,7 @@ const Login = ({navigation, route}) => {
 
         <CustomButton
           containerStyle={styles.btn}
-          text={
-            userType === 'doctor' ? 'Sign in as Doctor' : ' Sign in as Patient'
-          }
+          text={'Sign In'}
           textStyle={[
             styles.btnText,
             {

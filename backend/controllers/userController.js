@@ -1,3 +1,22 @@
+// Logout: Remove device token and clear session
+export const logout = async (req, res) => {
+  try {
+    // Remove device token if provided
+    const { token } = req.body;
+    if (token && req.user.deviceTokens) {
+      req.user.deviceTokens = req.user.deviceTokens.filter(t => t !== token);
+      await req.user.save();
+    }
+    // If using sessions, destroy session
+    if (req.session) {
+      req.session.destroy(() => {});
+    }
+    // If using JWT, client should delete token
+    res.json({ success: true, message: 'Logged out successfully' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
 import User from '../models/User.js';
 import bcrypt from 'bcryptjs';
 import path from 'path';

@@ -1,11 +1,16 @@
+
 import express from 'express';
-import { getProfile, updateProfile, changePassword, exportUserData, deleteAccount, addDeviceToken, removeDeviceToken } from '../controllers/userController.js';
+import { getProfile, updateProfile, changePassword, exportUserData, deleteAccount, addDeviceToken, removeDeviceToken, logout } from '../controllers/userController.js';
 import { protect } from '../middleware/authMiddleware.js';
 import multer from 'multer';
 import path from 'path';
 import { body } from 'express-validator';
 
 const router = express.Router();
+
+// ...existing code...
+
+router.post('/logout', protect, logout);
 
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {

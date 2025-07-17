@@ -451,13 +451,14 @@ const Signup = ({navigation, route}) => {
       //   showAlert(res.data.message || 'Sign up failed', 'error');
       // }
       if (res.data && res.data.success) {
+        showAlert('Signed Up Successfully. Please verify your email.', 'success');
         setTimeout(() => {
           navigation.navigate(SCREENS.OTPSCREEN, {
+            emailOrPhone: email,
             userType,
-            email,
-            phone_no,
+            userData: payload,
           });
-        }, 1500);
+        }, 1000);
       } else {
         showAlert(res.data.message || 'Sign up failed', 'error');
       }

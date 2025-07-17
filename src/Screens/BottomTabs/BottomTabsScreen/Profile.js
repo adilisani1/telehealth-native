@@ -24,7 +24,9 @@ import {Fonts} from '../../../Constants/Fonts';
 import RBSheetConfirmation from '../../../components/BottomSheets/RBSheetConfirmation';
 import {Svgs} from '../../../assets/Svgs/Svg';
 import {Images} from '../../../assets/Images/images';
-import {useLogout} from '../../../utils/authUtils'; // Use logout with navigation
+import axios from 'axios';
+import { getToken, removeToken } from '../../../utils/tokenStorage';
+import { logoutUser } from '../../../redux/Slices/authSlice';
 
 const Profile = ({navigation}) => {
   const {isDarkMode} = useSelector(store => store.theme);
@@ -32,17 +34,15 @@ const Profile = ({navigation}) => {
   const dispatch = useDispatch();
   const logout_Ref = useRef();
   const delete_Ref = useRef();
-  const logout = useLogout(); // Use logout with navigation
 
   const handleLogout = () => {
     logout_Ref.current.close();
-    logout(navigation); // Pass navigation to logout
+    dispatch(logoutUser());
   };
 
   const handleDeleteAccount = () => {
     delete_Ref.current.close();
-    // Add delete account logic here
-    logout(navigation); // Pass navigation to logout
+    dispatch(logoutUser());
   };
 
   const styles = StyleSheet.create({
@@ -130,7 +130,7 @@ const Profile = ({navigation}) => {
       onPress={() =>
         item.button ? item.action() : navigation.navigate(item.screen)
       }>
-      {item.id === '6' ? (
+      {item.icon === 'help-circle-outline' ? (
         <MaterialCommunityIcons
           name={item.icon}
           size={RFPercentage(3.2)}
@@ -169,7 +169,7 @@ const Profile = ({navigation}) => {
   const profileOptions = [
     {
       id: '1',
-      name: 'Profile',
+      name: 'Edit Profile',
       icon: 'person-outline',
       screen: SCREENS.UPDATEPROFILE,
     },
@@ -182,7 +182,7 @@ const Profile = ({navigation}) => {
     {
       id: '3',
       name: 'Help Center',
-      icon: 'help-outline',
+      icon: 'help-circle-outline',
       screen: SCREENS.HELPCENTER,
     },
     {
@@ -198,45 +198,42 @@ const Profile = ({navigation}) => {
       screen: SCREENS.NOTIFICATIONSETTINGS,
     },
     {
-      id: '7',
+      id: '6',
       name: 'Payment Options',
       icon: 'payment',
       screen: SCREENS.PAYMENTOPTION,
     },
     {
-      id: '8',
+      id: '7',
       name: 'Password Manager',
       icon: 'lock-outline',
       screen: SCREENS.PASSWORDMANAGER,
     },
     {
-      id: '9',
+      id: '8',
       name: 'Log out',
       icon: 'logout',
       button: true,
       action: () => logout_Ref.current.open(),
     },
     {
-      id: '10',
+      id: '9',
       name: 'Delete Account',
       icon: 'delete-outline',
       button: true,
       action: () => delete_Ref.current.open(),
     },
   ];
-
   return (
     <View style={styles.container}>
       <StackHeader title={'Profile'} />
 
       <View style={styles.profileContainer}>
-        <Image source={Images.dr2} style={styles.profileImage} />
-        <TouchableOpacity style={styles.editIcon}>
+        <Image source={Images.dr1} style={styles.profileImage} />
+        <TouchableOpacity style={styles.editIcon} onPress={() => navigation.navigate(SCREENS.UPDATEPROFILE)}>
           <Icon name="edit" size={RFPercentage(2)} color={Colors.white} />
         </TouchableOpacity>
-        <Text style={styles.profileName}>
-          {User?.name || 'Adewole Abdulazeez'}
-        </Text>
+        <Text style={styles.profileName}>{User?.name || 'User'}</Text>
       </View>
 
       <FlatList
@@ -285,6 +282,6 @@ const Profile = ({navigation}) => {
       />
     </View>
   );
-};
+}
 
 export default Profile;

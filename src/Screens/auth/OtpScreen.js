@@ -22,16 +22,21 @@ import CustomButton from '../../components/Buttons/customButton';
 import {SCREENS} from '../../Constants/Screens';
 import {useAlert} from '../../Providers/AlertContext';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import authApi from '../../services/authApi';
+import { useDispatch } from 'react-redux';
+import { loginUser } from '../../redux/Slices/authSlice';
 
 const OtpScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
   const {isDarkMode} = useSelector(store => store.theme);
   const {showAlert} = useAlert();
+  const dispatch = useDispatch();
 
   const {emailOrPhone, userType, userData} = route.params || {
     emailOrPhone: 'user@example.com',
     userType: 'patient',
+    userData: null,
   };
 
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
@@ -82,36 +87,23 @@ const OtpScreen = () => {
     }
 
     try {
-      // Use your actual API endpoint
-      const response = await fetch(
-        'http://localhost:5000/api/auth/verify-email',
-        {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({
-            email: emailOrPhone, // Your backend expects email
-            otp: otpCode,
-          }),
-        },
-      );
-
-      const data = await response.json();
-
+      // Use axios for consistent API calls
+      const res = await authApi.verifyEmail({ email: emailOrPhone, otp: otpCode });
+      const data = res.data || {};
       if (data.success) {
         showAlert('Email verified successfully!', 'success');
-        setTimeout(() => {
-          if (userType === 'doctor') {
-            navigation.navigate(SCREENS.PROGRESS);
-          } else {
-            navigation.navigate(SCREENS.DASHBOARD);
-          }
-        }, 1500);
+        // Dispatch loginUser so Router switches stack
+        if (userData) {
+          dispatch(loginUser({ user: { ...userData, _id: data.userId || data._id || data.user?._id || data.user?.id }, userType: userType }));
+        } else if (data.user) {
+          dispatch(loginUser({ user: data.user, userType: data.user.role || userType }));
+        }
       } else {
         showAlert(data.message || 'Invalid OTP', 'error');
       }
     } catch (error) {
-      console.error('OTP Verification Error:', error);
-      showAlert('Failed to verify OTP. Please try again.', 'error');
+      const msg = error.response?.data?.message || error.message || 'Failed to verify OTP. Please try again.';
+      showAlert(msg, 'error');
     }
   };
 
