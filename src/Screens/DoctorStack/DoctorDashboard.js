@@ -290,7 +290,7 @@ const DoctorDashboard = ({navigation}) => {
       <View style={styles.header}>
         <View style={styles.headerInfo}>
           <Text style={styles.welcomeText}>
-            Welcome back, Dr. {User?.name || 'Doctor'}
+            Welcome back, {User?.name || 'Doctor'}
           </Text>
           <Text style={styles.dateText}>
             {new Date().toLocaleDateString('en-US', {
