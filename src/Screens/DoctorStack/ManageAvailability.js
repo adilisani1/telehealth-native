@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, {useState, useEffect} from 'react';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { TextInput, Alert } from 'react-native';
 import {
@@ -39,6 +39,51 @@ const ManageAvailability = ({navigation}) => {
     sunday: { enabled: false, slots: [] },
   });
   const [timezone, setTimezone] = useState(Intl?.DateTimeFormat().resolvedOptions().timeZone || '');
+
+  // TODO: Replace with dynamic doctorId from auth/user context
+  const doctorId = '6873fedd9be7a36e6e1bdbf6';
+
+  useEffect(() => {
+    const fetchAvailability = async () => {
+      try {
+        const token = await getToken();
+        const res = await fetch(`https://mrvwhr8v-5000.inc1.devtunnels.ms/api/doctor/public/${doctorId}`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        });
+        const data = await res.json();
+        if (data && data.data && data.data.availability && data.data.timezone) {
+          const newAvailability = {
+            monday: { enabled: false, slots: [] },
+            tuesday: { enabled: false, slots: [] },
+            wednesday: { enabled: false, slots: [] },
+            thursday: { enabled: false, slots: [] },
+            friday: { enabled: false, slots: [] },
+            saturday: { enabled: false, slots: [] },
+            sunday: { enabled: false, slots: [] },
+          };
+          data.data.availability.forEach(dayObj => {
+            const key = dayObj.day.toLowerCase();
+            if (newAvailability[key]) {
+              newAvailability[key].enabled = dayObj.slots.length > 0;
+              newAvailability[key].slots = dayObj.slots.map(slotStr => {
+                const [start, end] = slotStr.split('-');
+                return { start, end };
+              });
+            }
+          });
+          setAvailability(newAvailability);
+          setTimezone(data.data.timezone);
+        }
+      } catch (e) {
+        // Optionally show error or fallback
+      }
+    };
+    fetchAvailability();
+  }, []);
   const [picker, setPicker] = useState({ visible: false, day: null, idx: null, field: null });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -122,6 +167,7 @@ const ManageAvailability = ({navigation}) => {
       setPicker({ visible: false, day: null, idx: null, field: null });
       return;
     }
+    // Always use getHours/getMinutes directly, ignore any offset
     const hours = selectedDate.getHours().toString().padStart(2, '0');
     const minutes = selectedDate.getMinutes().toString().padStart(2, '0');
     const time = `${hours}:${minutes}`;
@@ -334,17 +380,32 @@ const ManageAvailability = ({navigation}) => {
       {picker.visible && (
         <DateTimePicker
           value={(() => {
-            // Try to parse the current value, fallback to 09:00
+            // Always use a fixed date and zero out seconds/milliseconds
             if (picker.value && /^\d{2}:\d{2}$/.test(picker.value)) {
               const [h, m] = picker.value.split(':');
-              return new Date(0, 0, 0, parseInt(h, 10), parseInt(m, 10));
+              const d = new Date(1970, 0, 1, parseInt(h, 10), parseInt(m, 10), 0, 0);
+              d.setSeconds(0, 0);
+              return d;
             }
-            return new Date(0, 0, 0, 9, 0);
+            const d = new Date(1970, 0, 1, 9, 0, 0, 0);
+            d.setSeconds(0, 0);
+            return d;
           })()}
           mode="time"
           is24Hour={true}
-          display="default"
-          onChange={onTimeChange}
+          display="spinner"
+          onChange={(event, selectedDate) => {
+            if (event.type === 'dismissed' || !selectedDate) {
+              setPicker({ visible: false, day: null, idx: null, field: null });
+              return;
+            }
+            // Always use getHours/getMinutes from a fixed date, ignore any offset
+            const hours = selectedDate.getHours().toString().padStart(2, '0');
+            const minutes = selectedDate.getMinutes().toString().padStart(2, '0');
+            const time = `${hours}:${minutes}`;
+            updateSession(picker.day, picker.idx, picker.field, time);
+            setPicker({ visible: false, day: null, idx: null, field: null });
+          }}
         />
       )}
       </ScrollView>

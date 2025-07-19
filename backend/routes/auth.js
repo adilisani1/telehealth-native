@@ -1,9 +1,13 @@
+
 import express from 'express';
-import { register, login, verifyEmail, requestPasswordReset, resetPassword } from '../controllers/authController.js';
+import { register, login, verifyEmail, requestPasswordReset, resetPassword, resendOtp } from '../controllers/authController.js';
 import rateLimit from 'express-rate-limit';
 import { body } from 'express-validator';
 
 const router = express.Router();
+
+// Place this after router is initialized
+router.post('/resend-otp', resendOtp);
 
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes

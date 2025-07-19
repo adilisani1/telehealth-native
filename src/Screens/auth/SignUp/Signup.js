@@ -456,7 +456,7 @@ const Signup = ({navigation, route}) => {
           navigation.navigate(SCREENS.OTPSCREEN, {
             emailOrPhone: email,
             userType,
-            userData: payload,
+            userData: res.data, // pass backend response, not just payload
           });
         }, 1000);
       } else {

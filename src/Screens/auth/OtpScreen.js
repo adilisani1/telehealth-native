@@ -25,6 +25,7 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import authApi from '../../services/authApi';
 import { useDispatch } from 'react-redux';
 import { loginUser } from '../../redux/Slices/authSlice';
+import { storeToken, getToken } from '../../utils/tokenStorage';
 
 const OtpScreen = () => {
   const navigation = useNavigation();
@@ -48,6 +49,7 @@ const OtpScreen = () => {
 
   const theme = isDarkMode ? Colors.darkTheme : Colors.lightTheme;
 
+  const [otpFocusIndex, setOtpFocusIndex] = useState(-1);
   // Handle resend timer
   useEffect(() => {
     if (resendTimer > 0) {
@@ -90,16 +92,66 @@ const OtpScreen = () => {
       // Use axios for consistent API calls
       const res = await authApi.verifyEmail({ email: emailOrPhone, otp: otpCode });
       const data = res.data || {};
+      console.log('verifyEmail response:', data);
       if (data.success) {
         showAlert('Email verified successfully!', 'success');
-        // Dispatch loginUser so Router switches stack
-        if (userData) {
-          dispatch(loginUser({ user: { ...userData, _id: data.userId || data._id || data.user?._id || data.user?.id }, userType: userType }));
-        } else if (data.user) {
-          dispatch(loginUser({ user: data.user, userType: data.user.role || userType }));
+        // Use token and user from verifyEmail response if present, else fallback to userData
+        let token = data.token || (userData && userData.token);
+        let userObj = data.user || (userData && userData.user);
+        let userRole = userType;
+
+        if (token) {
+          await storeToken(token);
+          // If userObj is missing, fetch profile
+          if (!userObj) {
+            try {
+              const profileRes = await authApi.getProfile(token);
+              console.log('getProfile after verify:', profileRes.data);
+              if (profileRes.data && profileRes.data.user && (profileRes.data.user._id || profileRes.data.user.id)) {
+                userObj = profileRes.data.user;
+              } else {
+                showAlert('Could not fetch user data after verification. Raw: ' + JSON.stringify(profileRes.data), 'error');
+                return;
+              }
+            } catch (err) {
+              showAlert('Could not fetch user data after verification (profile error). ' + (err?.message || ''), 'error');
+              return;
+            }
+          }
+          // Set userRole from userObj if available
+          if (userObj && userObj.role) {
+            userRole = userObj.role;
+          }
+          console.log('Dispatching loginUser with:', { userObj, userRole });
+          if (userObj) {
+            dispatch(loginUser({ user: { ...userObj, _id: userObj._id || userObj.id }, userType: userRole }));
+            // Reset navigation to home/tab/dashboard based on user role
+            if (userRole === 'doctor') {
+              console.log('Navigating to DOCTOR_DASHBOARD');
+              if (SCREENS.DOCTOR_DASHBOARD) {
+                navigation.reset({ index: 0, routes: [{ name: SCREENS.DOCTOR_DASHBOARD }] });
+              } else {
+                showAlert('Navigation error: SCREENS.DOCTOR_DASHBOARD is not defined.', 'error');
+              }
+            } else {
+              console.log('Navigating to TABS (main home)');
+              if (SCREENS.TABS) {
+                navigation.reset({ index: 0, routes: [{ name: SCREENS.TABS }] });
+              } else {
+                showAlert('Navigation error: SCREENS.TABS is not defined.', 'error');
+              }
+            }
+            return;
+          } else {
+            showAlert('Could not fetch user data after verification (no user object).', 'error');
+            return;
+          }
+        } else {
+          showAlert('No token returned after verification. Please ensure the backend verifyEmail endpoint returns a token and user object.', 'error');
+          return;
         }
       } else {
-        showAlert(data.message || 'Invalid OTP', 'error');
+        showAlert((data.message || 'Invalid OTP') + '\nRaw: ' + JSON.stringify(data), 'error');
       }
     } catch (error) {
       const msg = error.response?.data?.message || error.message || 'Failed to verify OTP. Please try again.';
@@ -111,30 +163,22 @@ const OtpScreen = () => {
   const handleResendOtp = async () => {
     if (!isResendDisabled) {
       try {
-        // You might need to create a resend endpoint or call register again
-        const response = await fetch(
-          'http://localhost:5000/api/auth/register',
-          {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify(userData), // Resend with original user data
-          },
-        );
-
-        const data = await response.json();
-
+        const res = await authApi.resendOtp({ email: emailOrPhone });
+        const data = res.data || {};
         if (data.success) {
           setResendTimer(30);
           setIsResendDisabled(true);
           setOtp(['', '', '', '', '', '']);
-          inputRefs[0].current.focus();
+          if (inputRefs[0] && inputRefs[0].current) {
+            inputRefs[0].current.focus();
+          }
           showAlert(`OTP resent to ${emailOrPhone}`, 'success');
         } else {
           showAlert(data.message || 'Failed to resend OTP', 'error');
         }
       } catch (error) {
-        console.error('Resend OTP Error:', error);
-        showAlert('Failed to resend OTP.', 'error');
+        const msg = error.response?.data?.message || error.message || 'Failed to resend OTP.';
+        showAlert(msg, 'error');
       }
     }
   };
@@ -163,100 +207,117 @@ const OtpScreen = () => {
     subtitle: {
       fontSize: RFPercentage(2),
       fontFamily: Fonts.Regular,
-      color: theme.secondryTextColor,
+      color: theme.secondaryTextColor,
       textAlign: 'center',
-      marginBottom: hp(4),
-      lineHeight: RFPercentage(2.8),
-    },
-    phoneNumber: {
-      color: theme.primaryColor,
-      fontFamily: Fonts.Medium,
+      marginBottom: hp(2),
     },
     otpContainer: {
       flexDirection: 'row',
-      justifyContent: 'space-between',
-      marginBottom: hp(4),
-      paddingHorizontal: wp(4),
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginVertical: hp(2),
+      gap: wp(2),
     },
     otpInput: {
-      width: wp(12),
+      width: wp(10),
       height: wp(12),
-      borderWidth: 2,
-      borderColor: theme.BorderGrayColor,
-      borderRadius: wp(2),
-      fontSize: RFPercentage(2.5),
-      fontFamily: Fonts.Bold,
+      borderWidth: 1.5,
+      borderColor: theme.primaryColor,
+      borderRadius: 10,
       textAlign: 'center',
-      backgroundColor: theme.secondryColor,
-      color: theme.primaryTextColor,
+      fontSize: RFPercentage(2.5),
+      color: '#222', // Always dark for visibility
+      backgroundColor: '#fff',
+      marginHorizontal: wp(1),
     },
     otpInputFilled: {
+      borderColor: theme.successColor,
+      backgroundColor: '#e6f7ef',
+    },
+    otpInputFocused: {
       borderColor: theme.primaryColor,
-      backgroundColor: theme.primaryColor + '20',
+      backgroundColor: '#f0f8ff',
+      elevation: 2,
+      shadowColor: theme.primaryColor,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.12,
     },
     button: {
-      backgroundColor: theme.primaryBtn.BtnColor,
-      paddingVertical: hp(2),
-      borderRadius: wp(2),
-      alignItems: 'center',
-      marginBottom: hp(3),
-    },
-    buttonDisabled: {
-      opacity: 0.6,
+      marginTop: hp(3),
+      marginBottom: hp(1.5),
+      alignSelf: 'center',
+      width: '70%',
+      borderRadius: 12,
+      backgroundColor: theme.primaryColor,
+      paddingVertical: hp(1.2),
+      shadowColor: theme.primaryColor,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.18,
+      shadowRadius: 6,
+      elevation: 3,
     },
     buttonText: {
-      color: theme.primaryBtn.TextColor,
-      fontSize: RFPercentage(2.2),
+      fontSize: RFPercentage(2.3),
       fontFamily: Fonts.Bold,
+      color: '#fff',
+      letterSpacing: 0.5,
+      textAlign: 'center',
     },
-    resendContainer: {
-      alignItems: 'center',
+    buttonDisabled: {
+      opacity: 0.5,
     },
     resendButton: {
-      paddingVertical: hp(1.5),
-      paddingHorizontal: wp(4),
+      paddingHorizontal: 18,
+      paddingVertical: 7,
+      borderWidth: 1.5,
+      borderColor: theme.primaryColor,
+      borderRadius: 8,
+      backgroundColor: '#fff',
+      marginLeft: 0,
+      marginRight: 0,
     },
     resendText: {
-      fontSize: RFPercentage(2),
-      fontFamily: Fonts.Medium,
       color: theme.primaryColor,
+      fontFamily: Fonts.Bold,
+      fontSize: RFPercentage(2),
+      textAlign: 'center',
     },
     resendTextDisabled: {
-      color: theme.secondryTextColor,
+      color: theme.disabledColor,
     },
     timerText: {
-      fontSize: RFPercentage(1.8),
-      fontFamily: Fonts.Regular,
-      color: theme.secondryTextColor,
-      marginTop: hp(1),
+      marginLeft: 10,
+      color: theme.secondaryTextColor,
+      fontSize: RFPercentage(2),
+    },
+    buttonGroup: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginTop: hp(2.5),
     },
   });
 
   return (
     <SafeAreaView style={styles.container}>
-      <StackHeader title="Verify OTP" onBackPress={() => navigation.goBack()} />
-
+      <StackHeader title="OTP Verification" />
       <View style={styles.contentContainer}>
         <View style={styles.iconContainer}>
-          <Icon
-            name="message-text-outline"
-            size={RFPercentage(8)}
-            color={theme.primaryColor}
-          />
+          <Icon name="shield-check" size={48} color={theme.primaryColor} />
         </View>
-
-        <Text style={styles.title}>Verify Your Email</Text>
+        <Text style={styles.title}>Enter OTP</Text>
         <Text style={styles.subtitle}>
-          Enter the 6-digit verification code sent to{'\n'}
-          <Text style={styles.phoneNumber}>{emailOrPhone}</Text>
+          Please enter the 6-digit code sent to {emailOrPhone}
         </Text>
-
         <View style={styles.otpContainer}>
           {otp.map((digit, index) => (
             <TextInput
               key={index}
               ref={inputRefs[index]}
-              style={[styles.otpInput, digit && styles.otpInputFilled]}
+              style={[
+                styles.otpInput,
+                digit && styles.otpInputFilled,
+                otpFocusIndex === index && styles.otpInputFocused,
+              ]}
               value={digit}
               onChangeText={text => handleOtpChange(text, index)}
               onKeyPress={e => handleKeyPress(e, index)}
@@ -264,40 +325,41 @@ const OtpScreen = () => {
               maxLength={1}
               autoFocus={index === 0}
               selectionColor={theme.primaryColor}
+              onFocus={() => setOtpFocusIndex(index)}
+              onBlur={() => setOtpFocusIndex(-1)}
             />
           ))}
         </View>
-
-        <CustomButton
-          containerStyle={[
-            styles.button,
-            otp.join('').length !== 6 && styles.buttonDisabled,
-          ]}
-          text="Get Started"
-          textStyle={styles.buttonText}
-          onPress={handleVerifyOtp}
-          disabled={otp.join('').length !== 6}
-        />
-
-        <View style={styles.resendContainer}>
-          <TouchableOpacity
-            style={styles.resendButton}
-            onPress={handleResendOtp}
-            disabled={isResendDisabled}>
-            <Text
-              style={[
-                styles.resendText,
-                isResendDisabled && styles.resendTextDisabled,
-              ]}>
-              {isResendDisabled ? 'Resend Code' : 'Resend Code'}
-            </Text>
-          </TouchableOpacity>
-
-          {isResendDisabled && (
-            <Text style={styles.timerText}>
-              Resend available in {resendTimer}s
-            </Text>
-          )}
+        <View style={styles.buttonGroup}>
+          <CustomButton
+            containerStyle={[
+              styles.button,
+              otp.join('').length !== 6 && styles.buttonDisabled,
+            ]}
+            text="Verify & Continue"
+            textStyle={styles.buttonText}
+            onPress={handleVerifyOtp}
+            disabled={otp.join('').length !== 6}
+          />
+          <View style={styles.resendContainer}>
+            <TouchableOpacity
+              style={[styles.resendButton, isResendDisabled && styles.buttonDisabled]}
+              onPress={handleResendOtp}
+              disabled={isResendDisabled}>
+              <Text
+                style={[
+                  styles.resendText,
+                  isResendDisabled && styles.resendTextDisabled,
+                ]}>
+                Resend Code
+              </Text>
+            </TouchableOpacity>
+            {isResendDisabled && (
+              <Text style={styles.timerText}>
+                {`Resend in ${resendTimer}s`}
+              </Text>
+            )}
+          </View>
         </View>
       </View>
     </SafeAreaView>

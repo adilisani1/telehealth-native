@@ -300,8 +300,6 @@ const Login = ({navigation, route}) => {
   });
 
   const handleLogin = async () => {
-    console.log('handleLogin called');
-  console.log('Login.js component rendered');
     if (!value || value.length === 0) {
       showAlert('Please Enter email address', 'error');
       return;
@@ -319,31 +317,60 @@ const Login = ({navigation, route}) => {
     setLoading(true);
     try {
       const res = await authApi.login({ emailOrPhone: value, password });
-      console.log('Login.js full API response:', res);
       const user = res.data?.data?.user;
       const token = res.data?.data?.token;
-      if (user && token) {
-        console.log('Login.js user:', user);
-        const loginPayload = { user, userType: user.role };
-        console.log('Login.js loginUser payload:', loginPayload);
-        dispatch(loginUser(loginPayload));
-        // Store token in AsyncStorage
-        try {
-          const { storeToken } = await import('../../utils/tokenStorage');
-          await storeToken(token);
-        } catch (e) {
-          console.error('Failed to store token:', e);
+      const emailVerified = res.data?.data?.emailVerified;
+      // If user exists, credentials are correct
+      if (user) {
+        // Check for email verification
+        const isVerified = (user.emailVerified === true) || (emailVerified === true) || (token ? true : false);
+        if (isVerified) {
+          // Email is verified, proceed to dashboard
+          const loginPayload = { user, userType: user.role };
+          dispatch(loginUser(loginPayload));
+          try {
+            const { storeToken } = await import('../../utils/tokenStorage');
+            if (token) await storeToken(token);
+          } catch (e) {
+            console.error('Failed to store token:', e);
+          }
+          showAlert('Login successful', 'success');
+          // Navigation is now handled by the root navigator (Router.js) based on Redux state.
+        } else {
+          // Only navigate to OTP if backend message is strictly about unverified email and NOT invalid credentials
+          const msgRaw = res.data?.message || '';
+          const msg = msgRaw.toLowerCase();
+          if (msg.includes('email not verified') && !msg.includes('invalid credentials')) {
+            showAlert('Your email is not verified. Please verify your email to continue.', 'error');
+            navigation.navigate(SCREENS.OTPSCREEN, {
+              emailOrPhone: value,
+              userType: routeUserType,
+              userData: user,
+            });
+          } else {
+            // Any other case, treat as invalid credentials
+            showAlert('Invalid credentials', 'error');
+          }
         }
-        showAlert('Login successful', 'success');
-        // Navigation is now handled by the root navigator (Router.js) based on Redux state.
-        // No need to call navigation.reset here.
       } else {
-        console.log('Login.js login failed, res.data:', res.data);
-        showAlert(res.data.message || 'Login failed', 'error');
+        // No user returned, credentials are invalid
+        showAlert('Invalid credentials', 'error');
       }
     } catch (err) {
-      console.log('Login.js login error:', err);
-      showAlert(err.response?.data?.message || 'Login failed', 'error');
+      const msgRaw = err.response?.data?.message || 'Login failed';
+      const msg = msgRaw.toLowerCase();
+      // Only navigate to OTP if the error message contains 'email not verified' and NOT 'invalid credentials'
+      if (msg.includes('email not verified') && !msg.includes('invalid credentials')) {
+        showAlert('Your email is not verified. Please verify your email to continue.', 'error');
+        navigation.navigate(SCREENS.OTPSCREEN, {
+          emailOrPhone: value,
+          userType: routeUserType,
+          userData: null,
+        });
+      } else {
+        // Any other case is invalid credentials
+        showAlert('Invalid credentials', 'error');
+      }
     } finally {
       setLoading(false);
     }

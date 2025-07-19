@@ -1,3 +1,6 @@
+export const resendOtp = async (data) => {
+  return api.post('/api/auth/resend-otp', data);
+};
 import axios from 'axios';
 
 const BASE_URL = 'https://mrvwhr8v-5000.inc1.devtunnels.ms';
@@ -54,4 +57,5 @@ export default {
   verifyEmail,
   requestPasswordReset,
   resetPassword,
+  resendOtp,
 };

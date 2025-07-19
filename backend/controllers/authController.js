@@ -1,3 +1,39 @@
+
+// Resend OTP for email verification
+export const resendOtp = async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ success: false, message: 'Email is required' });
+    }
+    if (!validateEmail(email)) {
+      return res.status(400).json({ success: false, message: 'Invalid email format' });
+    }
+    const user = await User.findOne({ email: email.toLowerCase() });
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+    if (user.isVerified === true) {
+      return res.status(400).json({ success: false, message: 'Email already verified' });
+    }
+    // Generate new OTP
+    const otp = otpGenerator.generate(OTP_LENGTH, { upperCaseAlphabets: false, specialChars: false, lowerCaseAlphabets: false });
+    const otpExpiry = moment().add(OTP_EXPIRY_MINUTES, 'minutes').toDate();
+    user.otp = otp;
+    user.otpExpiry = otpExpiry;
+    await user.save();
+    // Send OTP email
+    await sendMail({
+      to: user.email,
+      subject: EMAIL_VERIFICATION_SUBJECT,
+      text: `Your OTP for email verification is: ${otp}`,
+      html: `<p>Your OTP for email verification is: <b>${otp}</b></p>`
+    });
+    res.status(200).json({ success: true, message: 'OTP resent successfully.' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
 import User from '../models/User.js';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
@@ -98,7 +134,7 @@ export const register = async (req, res) => {
       text: `Your OTP for email verification is: ${otp}`,
       html: `<p>Your OTP for email verification is: <b>${otp}</b></p>`
     });
-    res.status(201).json({ success: true, data: null, message: 'User registered successfully. Please verify your email with the OTP sent.' });
+    res.status(201).json({ success: true, data: user, message: 'User registered successfully. Please verify your email with the OTP sent.' });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -136,7 +172,24 @@ export const verifyEmail = async (req, res) => {
     user.otp = undefined;
     user.otpExpiry = undefined;
     await user.save();
-    res.json({ success: true, message: 'Email verified successfully' });
+
+    // Generate JWT token after verification
+    const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '7d' });
+    // Return user object (without password)
+    const userObj = {
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      phone: user.phone,
+      role: user.role,
+      avatar: user.avatar,
+    };
+    res.json({
+      success: true,
+      message: 'Email verified successfully',
+      token,
+      user: userObj
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -158,15 +211,17 @@ export const login = async (req, res) => {
     if (!user) {
       return res.status(401).json({ success: false, message: 'Invalid credentials' });
     }
+    // Check password first
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(401).json({ success: false, message: 'Invalid credentials' });
+    }
+    // Only after password is correct, check if verified
     if (!user.isVerified) {
       return res.status(403).json({ success: false, message: 'Email not verified. Please verify your email before logging in.' });
     }
     if (user.status === 'suspended') {
       return res.status(403).json({ success: false, message: 'Your account is suspended. Please contact support.' });
-    }
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.status(401).json({ success: false, message: 'Invalid credentials' });
     }
     const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '7d' });
     res.json({

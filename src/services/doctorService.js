@@ -1,3 +1,16 @@
+export const getDoctorAvailability = async (token) => {
+  try {
+    // If backend exposes a dedicated endpoint for availability, update the URL accordingly.
+    // Here, we assume /api/doctor/dashboard or /api/doctor/profile returns availability and timezone.
+    const response = await doctorApi.get('/api/doctor/profile', {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    // Adjust the path to data as per backend response structure
+    return response.data.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
 export const updateDoctorAvailability = async (token, availability, timezone) => {
   try {
     const response = await doctorApi.put(
