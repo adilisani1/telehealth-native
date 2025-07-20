@@ -14,7 +14,10 @@ import adminRoutes from '../routes/admin.js';
 import path from 'path';
 import helmet from 'helmet';
 
+
 const app = express();
+// Trust first proxy (for correct client IP and security with rate limiting)
+app.set('trust proxy', 1);
 
 app.use(helmet());
 app.use(cors({ origin: 'http://localhost:3000', credentials: true }));

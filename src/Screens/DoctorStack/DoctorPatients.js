@@ -1,6 +1,8 @@
 'use client';
 
-import {useState} from 'react';
+import {useState, useEffect} from 'react';
+import { getDoctorAppointmentHistory } from '../../services/doctorService';
+import { getToken } from '../../utils/tokenStorage';
 import {
   View,
   Text,
@@ -29,113 +31,68 @@ const DoctorPatients = ({navigation, route}) => {
   const isAnalyticsView = route?.params?.filter === 'analytics';
   const screenTitle = route?.params?.title || 'My Patients';
 
-  const [patients] = useState([
-    {
-      id: 1,
-      name: 'John Doe',
-      age: 35,
-      gender: 'Male',
-      lastVisit: '2024-01-15',
-      condition: 'Hypertension',
-      phone: '+1234567890',
-      email: 'john.doe@email.com',
-      address: '123 Main St, New York, NY',
-      bloodGroup: 'O+',
-      allergies: 'Penicillin, Peanuts',
-      medicalHistory: 'Hypertension, High Cholesterol',
-      status: 'active',
-      totalVisits: 12,
-      lastPayment: '$100',
-    },
-    {
-      id: 2,
-      name: 'Jane Smith',
-      age: 28,
-      gender: 'Female',
-      lastVisit: '2024-01-10',
-      condition: 'Diabetes',
-      phone: '+1234567891',
-      email: 'jane.smith@email.com',
-      address: '456 Oak Ave, Los Angeles, CA',
-      bloodGroup: 'A+',
-      allergies: 'None',
-      medicalHistory: 'Type 2 Diabetes, Thyroid',
-      status: 'new',
-      totalVisits: 3,
-      lastPayment: '$80',
-    },
-    {
-      id: 3,
-      name: 'Mike Johnson',
-      age: 42,
-      gender: 'Male',
-      lastVisit: '2024-01-08',
-      condition: 'Heart Disease',
-      phone: '+1234567892',
-      email: 'mike.johnson@email.com',
-      address: '789 Pine St, Chicago, IL',
-      bloodGroup: 'B+',
-      allergies: 'Shellfish',
-      medicalHistory: 'Coronary Artery Disease, Hypertension',
-      status: 'active',
-      totalVisits: 8,
-      lastPayment: '$120',
-    },
-  ]);
+  const [patients, setPatients] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  const [analytics] = useState({
-    totalPatients: 45,
-    newThisWeek: 3,
-    activePatients: 42,
-    averageAge: 35,
-    commonConditions: [
-      {name: 'Hypertension', count: 15},
-      {name: 'Diabetes', count: 12},
-      {name: 'Heart Disease', count: 8},
-    ],
-  });
+  useEffect(() => {
+    const fetchPatients = async () => {
+      setLoading(true);
+      setError('');
+      try {
+        const token = await getToken();
+        const res = await getDoctorAppointmentHistory(token);
+        // Group by patient._id, get latest appointment for each
+        const history = Array.isArray(res?.data?.history) ? res.data.history : [];
+        const patientMap = {};
+        history.forEach(appt => {
+          const p = appt.patient;
+          if (!p || !p._id) return;
+          // If not seen or this appt is newer, update
+          if (!patientMap[p._id] || new Date(appt.date) > new Date(patientMap[p._id].lastVisit)) {
+            patientMap[p._id] = {
+              id: p._id,
+              name: p.name,
+              age: p.dob ? Math.floor((Date.now() - new Date(p.dob)) / (365.25*24*60*60*1000)) : 'N/A',
+              lastVisit: appt.date ? new Date(appt.date).toLocaleDateString() : 'N/A',
+              diagnosis: appt.prescription?.diagnosis || 'Not Diagnosed yet',
+            };
+          }
+        });
+        setPatients(Object.values(patientMap));
+      } catch (e) {
+        setError('Failed to load patients');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchPatients();
+  }, []);
+
+  // Use analytics from navigation params if present, else fallback to default
+  const analytics = isAnalyticsView && route?.params?.analytics
+    ? route.params.analytics
+    : {
+        totalPatients: 0,
+        newPatients: 0,
+        activePatients: 0,
+        averageAge: 0,
+        commonConditions: [],
+      };
 
   const PatientCard = ({item}) => (
     <TouchableOpacity
       style={[styles.patientCard, {backgroundColor: theme.secondryColor}]}
-      onPress={() =>
-        navigation.navigate(SCREENS.PATIENT_PROFILE, {patient: item})
-      }>
+      onPress={() => navigation.navigate(SCREENS.PATIENT_PROFILE, {patient: item})}
+    >
       <View style={styles.patientInfo}>
         <View style={styles.patientHeader}>
           <Text style={[styles.patientName, {color: theme.primaryTextColor}]}>
             {item.name}
           </Text>
-          {item.status === 'new' && (
-            <View style={styles.newBadge}>
-              <Text style={styles.newBadgeText}>NEW</Text>
-            </View>
-          )}
         </View>
-        <Text style={[styles.patientDetails, {color: theme.secondryTextColor}]}>
-          Age: {item.age} • Last Visit: {item.lastVisit}
-        </Text>
-        <Text style={[styles.patientCondition, {color: theme.primaryColor}]}>
-          {item.condition}
-        </Text>
-        {isAnalyticsView && (
-          <Text
-            style={[styles.analyticsInfo, {color: theme.secondryTextColor}]}>
-            Total Visits: {item.totalVisits} • Last Payment: {item.lastPayment}
-          </Text>
-        )}
-      </View>
-      <View style={styles.patientActions}>
-        <TouchableOpacity
-          style={[styles.actionButton, {backgroundColor: Colors.success}]}
-          onPress={() => navigation.navigate(SCREENS.CALL)}>
-          <Text style={styles.actionButtonText}>Call</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.actionButton, {backgroundColor: theme.primaryColor}]}
-          onPress={() => navigation.navigate(SCREENS.CHAT)}>
-          <Text style={styles.actionButtonText}>Chat</Text>
-        </TouchableOpacity>
+        <Text style={[styles.patientDetails, {color: theme.secondryTextColor}]}>Age: {item.age} • Last Visit: {item.lastVisit}</Text>
+        <Text style={[styles.patientCondition, {color: theme.primaryColor}]}>Diagnosis: {item.diagnosis}</Text>
       </View>
     </TouchableOpacity>
   );
@@ -164,25 +121,29 @@ const DoctorPatients = ({navigation, route}) => {
       <View style={styles.analyticsContainer}>
         <AnalyticsCard
           title="Total Patients"
-          value={analytics.totalPatients}
+          value={analytics.totalPatients ?? analytics.totalPatients ?? 0}
           icon="account-group"
           color={Colors.success}
         />
         <AnalyticsCard
           title="New This Week"
-          value={analytics.newThisWeek}
+          value={
+            typeof analytics.newThisWeek === 'number'
+              ? analytics.newThisWeek
+              : (typeof analytics.newPatients === 'number' ? analytics.newPatients : 0)
+          }
           icon="account-plus"
           color={theme.primaryColor}
         />
         <AnalyticsCard
           title="Active Patients"
-          value={analytics.activePatients}
+          value={analytics.activePatients ?? 0}
           icon="account-check"
           color={Colors.success}
         />
         <AnalyticsCard
           title="Average Age"
-          value={`${analytics.averageAge} years`}
+          value={`${analytics.averageAge ?? 0} years`}
           icon="calendar"
           color={theme.primaryColor}
         />
@@ -196,7 +157,7 @@ const DoctorPatients = ({navigation, route}) => {
           styles.conditionsContainer,
           {backgroundColor: theme.secondryColor},
         ]}>
-        {analytics.commonConditions.map((condition, index) => (
+        {(analytics.commonConditions || []).map((condition, index) => (
           <View key={index} style={styles.conditionItem}>
             <Text
               style={[styles.conditionName, {color: theme.primaryTextColor}]}>
@@ -360,14 +321,14 @@ const DoctorPatients = ({navigation, route}) => {
       <StackHeader title={screenTitle} />
       <FlatList
         data={patients}
-        keyExtractor={item => item.id.toString()}
+        keyExtractor={item => item.id}
         renderItem={({item}) => <PatientCard item={item} />}
         contentContainerStyle={styles.listContainer}
         showsVerticalScrollIndicator={false}
         ListHeaderComponent={isAnalyticsView ? renderAnalyticsView : null}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>No patients found</Text>
+            <Text style={styles.emptyText}>{loading ? 'Loading...' : error || 'No patients found'}</Text>
           </View>
         }
       />

@@ -4,7 +4,8 @@ import { protect, authorizeRoles } from '../middleware/authMiddleware.js';
 import {
   getDashboard,
   getUpcomingAppointments,
-  getConsultationHistory,
+  getAppointmentHistory,
+  getDoctorConsultationHistory,
   getPatientProfileAndHistory,
   setAvailability,
   joinVideoCall,
@@ -21,7 +22,7 @@ router.get('/appointments/cancelled', protect, authorizeRoles('doctor'), getCanc
 
 router.get('/dashboard', protect, authorizeRoles('doctor'), getDashboard);
 router.get('/appointments/upcoming', protect, authorizeRoles('doctor'), getUpcomingAppointments);
-router.get('/appointments/history', protect, authorizeRoles('doctor'), getConsultationHistory);
+router.get('/appointments/history', protect, authorizeRoles('doctor'), getDoctorConsultationHistory);
 router.get('/patient/:patientId', protect, authorizeRoles('doctor'), getPatientProfileAndHistory);
 router.put('/availability',
   protect,

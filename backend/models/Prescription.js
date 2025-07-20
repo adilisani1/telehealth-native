@@ -10,6 +10,7 @@ const prescriptionSchema = new mongoose.Schema({
     instructions: String,
   }],
   notes: { type: String },
+  diagnosis: { type: String },
   date: { type: Date, default: Date.now },
   pdfUrl: { type: String },
 }, { timestamps: true });

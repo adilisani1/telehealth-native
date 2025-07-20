@@ -49,8 +49,8 @@ const ConsultationNotes = ({navigation}) => {
           headers: { 'Authorization': `Bearer ${token}` },
         });
         const data = await res.json();
-        if (data && data.data && data.data.appointments) {
-          setAppointments(data.data.appointments);
+        if (data && data.data && Array.isArray(data.data.history)) {
+          setAppointments(data.data.history);
         }
       } catch (e) {
         showAlert('Failed to fetch completed appointments', 'error');

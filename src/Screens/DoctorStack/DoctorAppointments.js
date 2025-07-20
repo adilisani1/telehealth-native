@@ -68,10 +68,9 @@ const DoctorAppointments = ({navigation}) => {
       const upcoming = Array.isArray(upcomingRes?.data?.appointments)
         ? upcomingRes.data.appointments.map(mapAppointment)
         : [];
-      const completed = Array.isArray(historyRes?.data?.appointments)
-        ? historyRes.data.appointments.filter(a => a.status === 'completed').map(mapAppointment)
-        : Array.isArray(historyRes)
-        ? historyRes.filter(a => a.status === 'completed').map(mapAppointment)
+      // Fix: completed appointments come from historyRes.data.history
+      const completed = Array.isArray(historyRes?.data?.history)
+        ? historyRes.data.history.map(mapAppointment)
         : [];
       const cancelled = Array.isArray(cancelledRes?.data?.appointments)
         ? cancelledRes.data.appointments.map(mapAppointment)

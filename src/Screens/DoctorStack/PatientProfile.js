@@ -1,3 +1,7 @@
+import React, {
+  useState,
+  useEffect
+} from 'react';
 import {
   View,
   Text,
@@ -23,22 +27,43 @@ const PatientProfile = ({navigation, route}) => {
   const {isDarkMode} = useSelector(store => store.theme);
   const theme = isDarkMode ? Colors.darkTheme : Colors.lightTheme;
 
-  const patient = route?.params?.patient;
 
-  const defaultPatient = {
-    name: 'John Doe',
-    age: 35,
-    gender: 'Male',
-    phone: '+1234567890',
-    email: 'john.doe@email.com',
-    address: '123 Main St, City, State',
-    bloodGroup: 'O+',
-    allergies: 'None',
-    medicalHistory: 'Hypertension, Diabetes',
-    lastVisit: '2024-01-15',
-  };
+  const patientParam = route?.params?.patient;
+  const [patientData, setPatientData] = React.useState(null);
+  const [prescription, setPrescription] = React.useState(null);
+  const [loading, setLoading] = React.useState(false);
+  const [error, setError] = React.useState('');
 
-  const patientData = patient || defaultPatient;
+  React.useEffect(() => {
+    const fetchPatientProfile = async () => {
+      if (!patientParam?.id && !patientParam?._id) return;
+      setLoading(true);
+      setError('');
+      try {
+        const patientId = patientParam.id || patientParam._id;
+        const token = await import('../../utils/tokenStorage').then(m => m.getToken());
+        const res = await fetch(`https://mrvwhr8v-5000.inc1.devtunnels.ms/api/doctor/patient/${patientId}`, {
+          headers: { 'Authorization': `Bearer ${token}` },
+        });
+        const data = await res.json();
+        if (data && data.data && data.data.patient) {
+          setPatientData(data.data.patient);
+        }
+        // Find latest completed appointment with prescription
+        if (data && data.data && Array.isArray(data.data.history)) {
+          const latestWithPrescription = data.data.history
+            .filter(a => a.prescription && a.prescription.diagnosis)
+            .sort((a, b) => new Date(b.date) - new Date(a.date))[0];
+          setPrescription(latestWithPrescription?.prescription || null);
+        }
+      } catch (e) {
+        setError('Failed to load patient profile');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchPatientProfile();
+  }, [patientParam]);
 
   const InfoRow = ({label, value}) => (
     <View style={styles.infoRow}>
@@ -137,6 +162,26 @@ const PatientProfile = ({navigation, route}) => {
     },
   });
 
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <StackHeader title="Patient Profile" />
+        <View style={{flex:1, justifyContent:'center', alignItems:'center'}}>
+          <Text style={{color: theme.primaryTextColor}}>Loading...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+  if (error || !patientData) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <StackHeader title="Patient Profile" />
+        <View style={{flex:1, justifyContent:'center', alignItems:'center'}}>
+          <Text style={{color: Colors.error}}>{error || 'Patient not found'}</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
   return (
     <SafeAreaView style={styles.container}>
       <StackHeader title="Patient Profile" />
@@ -145,23 +190,33 @@ const PatientProfile = ({navigation, route}) => {
           <Image source={Images.profile} style={styles.profileImage} />
           <Text style={styles.patientName}>{patientData.name}</Text>
           <Text style={styles.patientAge}>
-            {patientData.age} years old • {patientData.gender}
+            {patientData.dob ? `${Math.floor((Date.now() - new Date(patientData.dob)) / (365.25*24*60*60*1000))} years old` : ''} • {patientData.gender}
           </Text>
         </View>
 
         <View style={styles.infoContainer}>
           <Text style={styles.sectionTitle}>Contact Information</Text>
-          <InfoRow label="Phone" value={patientData.phone} />
+          <InfoRow label="Phone" value={patientData.phone || patientData.mobile || 'Not provided'} />
           <InfoRow label="Email" value={patientData.email} />
-          <InfoRow label="Address" value={patientData.address} />
         </View>
 
         <View style={styles.infoContainer}>
-          <Text style={styles.sectionTitle}>Medical Information</Text>
-          <InfoRow label="Blood Group" value={patientData.bloodGroup} />
+          <Text style={styles.sectionTitle}>Prescriptions</Text>
+          {/* <InfoRow label="Blood Group" value={patientData.bloodGroup} />
           <InfoRow label="Allergies" value={patientData.allergies} />
           <InfoRow label="Medical History" value={patientData.medicalHistory} />
-          <InfoRow label="Last Visit" value={patientData.lastVisit} />
+          <InfoRow label="Last Visit" value={patientData.lastVisit} /> */}
+          {/* Prescription Entities */}
+        
+          <InfoRow label="Diagnosis" value={prescription?.diagnosis || 'Not Diagnosed yet'} />
+          
+          {Array.isArray(prescription?.medicines) && prescription.medicines.length > 0 ? (
+            prescription.medicines.map((med, idx) => (
+              <InfoRow key={idx} label={`Medicine ${idx+1}`} value={`${med.name} (${med.dosage}) - ${med.instructions}`} />
+            ))
+          ) : (
+            <InfoRow label="Medicines" value="No medicines prescribed" />
+          )}
         </View>
 
         <View style={styles.actionButtonsContainer}>

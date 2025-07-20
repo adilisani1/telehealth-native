@@ -1,3 +1,33 @@
+// 3b. View consultation history for doctor (completed appointments)
+export const getDoctorConsultationHistory = async (req, res) => {
+  try {
+    const doctorId = req.user._id;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+    const total = await Appointment.countDocuments({ doctor: doctorId, status: 'completed' });
+    const history = await Appointment.find({ doctor: doctorId, status: 'completed' })
+      .populate([
+        { path: 'patient', select: 'name email gender dob healthInfo' },
+        { path: 'prescription', select: 'notes diagnosis medicines date pdfUrl' }
+      ])
+      .sort({ date: -1 })
+      .skip(skip)
+      .limit(limit);
+    res.json({
+      success: true,
+      data: {
+        history,
+        total,
+        page,
+        pages: Math.ceil(total / limit)
+      },
+      message: 'Doctor consultation history fetched successfully'
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
 // 9. View all cancelled appointments for the doctor
 export const getCancelledAppointments = async (req, res) => {
   try {
@@ -63,22 +93,32 @@ export const getUpcomingAppointments = async (req, res) => {
   }
 };
 
-// 3. View consultation history
-export const getConsultationHistory = async (req, res) => {
+// 3. View consultation history (for patient, with diagnosis in prescription)
+export const getAppointmentHistory = async (req, res) => {
   try {
+    const patientId = req.user._id;
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
-    const total = await Appointment.countDocuments({ doctor: req.user._id, status: 'completed' });
-    const appointments = await Appointment.find({
-      doctor: req.user._id,
-      status: 'completed'
-    })
-      .populate('patient', 'name email gender dob healthInfo')
+    const total = await Appointment.countDocuments({ patient: patientId, status: 'completed' });
+    const history = await Appointment.find({ patient: patientId, status: 'completed' })
+      .populate([
+        { path: 'doctor', select: 'name email specialization' },
+        { path: 'prescription', select: 'notes diagnosis medicines date pdfUrl' }
+      ])
       .sort({ date: -1 })
       .skip(skip)
       .limit(limit);
-    res.json({ success: true, data: { appointments, total, page, pages: Math.ceil(total / limit) }, message: 'Consultation history fetched successfully' });
+    res.json({
+      success: true,
+      data: {
+        history,
+        total,
+        page,
+        pages: Math.ceil(total / limit)
+      },
+      message: 'Appointment history fetched successfully'
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -97,7 +137,11 @@ export const getPatientProfileAndHistory = async (req, res) => {
     const history = await Appointment.find({
       doctor: req.user._id,
       patient: patientId
-    }).sort({ date: -1 });
+    })
+      .populate([
+        { path: 'prescription', select: 'notes diagnosis medicines date pdfUrl' }
+      ])
+      .sort({ date: -1 });
 
     res.json({ success: true, data: { patient, history }, message: 'Patient profile and history fetched successfully' });
   } catch (error) {
@@ -177,6 +221,7 @@ export const addConsultationNotes = async (req, res) => {
         patient: appointment.patient,
         medicines,
         notes,
+        diagnosis, // Save diagnosis in prescription
         date: new Date()
       });
       // Generate PDF for prescription
