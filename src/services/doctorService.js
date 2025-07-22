@@ -1,11 +1,17 @@
+import axios from 'axios';
+
+const BASE_URL = 'https://mrvwhr8v-5000.inc1.devtunnels.ms';
+
+const doctorApi = axios.create({
+  baseURL: BASE_URL,
+  timeout: 10000,
+});
+
 export const getDoctorAvailability = async (token) => {
   try {
-    // If backend exposes a dedicated endpoint for availability, update the URL accordingly.
-    // Here, we assume /api/doctor/dashboard or /api/doctor/profile returns availability and timezone.
     const response = await doctorApi.get('/api/doctor/profile', {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     });
-    // Adjust the path to data as per backend response structure
     return response.data.data;
   } catch (error) {
     throw error.response?.data || error;
@@ -35,17 +41,7 @@ export const getDoctorCancelledAppointments = async (token) => {
     throw error.response?.data || error;
   }
 };
-import axios from 'axios';
 
-const BASE_URL = 'https://mrvwhr8v-5000.inc1.devtunnels.ms';
-
-const doctorApi = axios.create({
-  baseURL: BASE_URL,
-  timeout: 10000,
-});
-
-// Optionally, add interceptors for auth, logging, etc.
-// doctorApi.interceptors.request.use(config => { ... });
 
 export const getDoctorUpcomingAppointments = async (token) => {
   try {
