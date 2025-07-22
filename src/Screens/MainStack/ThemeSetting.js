@@ -97,4 +97,3 @@ const ThemeSetting = () => {
 }
 
 export default ThemeSetting
-

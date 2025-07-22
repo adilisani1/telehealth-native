@@ -25,9 +25,11 @@ import RBSheetConfirmation from '../../components/BottomSheets/RBSheetConfirmati
 import CustomButton from '../../components/Buttons/customButton';
 import { useAlert } from '../../Providers/AlertContext';
 import { SCREENS } from '../../Constants/Screens';
+import appointmentApi from '../../services/appointmentApi';
 
 const NewAppointment = ({navigation, route}) => {
-  const title = route.params.title
+  const { title, doctor } = route.params;
+  const doctorAvailability = doctor.availability || [];
   const [selectedTime, setSelectedTime] = useState('');
   const [selectedGender, setSelectedGender] = useState('');
   const { isDarkMode } = useSelector(store => store.theme);
@@ -44,6 +46,11 @@ const NewAppointment = ({navigation, route}) => {
          '01 - 05', '06 - 10','11 - 15', '16 - 20', '21 - 30', '31 -35', '36 - 40', '41 - 55', '45 - 50', '51- 55', '56 - 60', '61 - 65', '66 - 70', '71 - 75', '76 - 80', '81 - 85', '86 - 90', '91 - 95', '96 - 100',
       ];
   const [problem, setProblem] = useState('')
+  const [slots, setSlots] = useState([]);
+  const [loadingSlots, setLoadingSlots] = useState(false);
+  const [booking, setBooking] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
 
 
   const morningTimes = ['09:00 AM', '09:30 AM', '10:00 AM', '10:30 AM'];
@@ -271,73 +278,57 @@ const renderDateItem = (timestamp) => {
   });
 
 
+  // Helper: Get available days from doctor's availability
+  const availableDays = doctorAvailability.map(a => a.day);
+
+  // Helper: Get available slots for selected day
+  const getAvailableSlotsForDay = (day) => {
+    const dayObj = doctorAvailability.find(a => a.day === day);
+    return dayObj ? dayObj.slots : [];
+  };
+
+  // State for selected date and day
+  const [selectedDate, setSelectedDate] = useState(moment().toDate());
+  const [selectedDay, setSelectedDay] = useState(moment().format('dddd'));
+
+  // Update selectedDay when selectedDate changes
+  React.useEffect(() => {
+    setSelectedDay(moment(selectedDate).format('dddd'));
+  }, [selectedDate]);
+
+  // Use available slots for selected day
+  const availableSlots = getAvailableSlotsForDay(selectedDay);
+
+  // Helper: Validate inputs
+  const validateInputs = () => {
+    if (!doctor._id) return 'Doctor not selected.';
+    if (!selectedDate) return 'Please select a date.';
+    if (!selectedTime) return 'Please select a time slot.';
+    if (!pName.trim()) return 'Please enter your full name.';
+    if (!ageGroup) return 'Please select your age group.';
+    if (!selectedGender) return 'Please select your gender.';
+    if (!problem.trim()) return 'Please describe your problem.';
+    return '';
+  };
+
   return (
     <ScrollView style={styles.container} >
-      {/* <View style={styles.header}>
-        <Icon name="arrow-back" size={RFPercentage(3)} color="#000" />
-        <Text style={styles.headerTitle}>New Appointment</Text>
-      </View> */}
       <StackHeader title={title} />
       <View style={{ paddingHorizontal: wp(5) }} >
-        {/* <FlatList
-          horizontal
-          data={dates}
-          renderItem={renderDateItem}
-          keyExtractor={(item) => item.day}
-          showsHorizontalScrollIndicator={false}
-          style={styles.flatList}
-        /> */}
-        <CustomCalender/>
-        {/* <CalendarStrip
-          calendarAnimation={{ type: 'sequence', duration: 30 }}
-          daySelectionAnimation={{ type: 'border', duration: 200, borderWidth: 1, borderHighlightColor: 'white', }}
-          style={{ height: 100, paddingBottom: 10, }}
-          calendarHeaderStyle={[styles.monthTitle]}
-          
-          // calendarHeaderContainerStyle ={{justifyContent: 'flex-start', alignItems:'flex-start',backgroundColor: 'yellow', }}
-          dayComponentHeight={100}
-          dayContainerStyle={{ height: hp(7), marginTop: hp(3), width: wp(11), borderColor: isDarkMode ? Colors.darkTheme.BorderGrayColor : Colors.lightTheme.BorderGrayColor,borderWidth: wp(0.4), borderRadius: wp(2), }}
-          // calendarColor={'#7743CE'}
-          dateNumberStyle={styles.dateLabel}
-          dateNameStyle={styles.dateText}
-          highlightDateNumberStyle={[styles.dateText,{color: isDarkMode ? Colors.darkTheme.primaryColor: Colors.lightTheme.primaryColor}]}
-          highlightDateNameStyle={[styles.dateText,{color: isDarkMode ? Colors.darkTheme.primaryColor: Colors.lightTheme.primaryColor}]}
-          disabledDateNameStyle={{ color: 'grey' }}
-          disabledDateNumberStyle={{ color: 'grey' }}
-          scrollable={true}
-          iconContainer={{ flex: 0.1 }}
-          // dayComponent={({ date, state }) => {
-          //   console.log(state);
-
-          //   return (
-          //     renderDateItem(date)
-          //   )
-
-          // }}
-        /> */}
+        {/* Calendar: highlight available days */}
+        <CustomCalender
+          onDateSelected={date => setSelectedDate(date)}
+          highlightDays={availableDays}
+        />
         <Text style={styles.sectionTitle}>Available Time</Text>
-        {/* <Text style={styles.subSectionTitle}>Morning</Text> */}
+        {availableSlots.length === 0 && (
+          <Text style={{ color: Colors.lightTheme.primaryColor, fontSize: RFPercentage(2), marginBottom: hp(1), textAlign: 'center' }}>
+            Sorry, there are no available times on the selected day. Please choose another day.
+          </Text>
+        )}
         <FlatList
           horizontal
-          data={morningTimes}
-          renderItem={renderTimeItem}
-          keyExtractor={(item) => item}
-          showsHorizontalScrollIndicator={false}
-          style={styles.flatList}
-        />
-        {/* <Text style={styles.subSectionTitle}>Afternoon</Text> */}
-        <FlatList
-          horizontal
-          data={afternoonTimes}
-          renderItem={renderTimeItem}
-          keyExtractor={(item) => item}
-          showsHorizontalScrollIndicator={false}
-          style={styles.flatList}
-        />
-        {/* <Text style={styles.subSectionTitle}>Evening</Text> */}
-        <FlatList
-          horizontal
-          data={eveningTimes}
+          data={availableSlots}
           renderItem={renderTimeItem}
           keyExtractor={(item) => item}
           showsHorizontalScrollIndicator={false}
@@ -405,14 +396,64 @@ const renderDateItem = (timestamp) => {
       </View>
 
 
-      <RBSheetConfirmation tittleStyle={{ fontFamily: Fonts.Medium }} descriptionStyle={{ borderTopColor: isDarkMode ? Colors.darkTheme.BorderGrayColor : Colors.lightTheme.BorderGrayColor, borderTopWidth: 1, paddingTop: hp(2) }} refRBSheet={reff} title={'Confirm'} cancelText={'Cancel'} okText={'Yes, Confirm'} height={hp(25)} description={'Are you sure you want to scehedule an appointment?'} onCancel={() => reff.current.close()} onOk={() => {
-           reff.current.close()
-          // showAlert('Appointment Scheduled Successfully', 'success');
+      <RBSheetConfirmation
+        tittleStyle={{ fontFamily: Fonts.Medium }}
+        descriptionStyle={{ borderTopColor: isDarkMode ? Colors.darkTheme.BorderGrayColor : Colors.lightTheme.BorderGrayColor, borderTopWidth: 1, paddingTop: hp(2) }}
+        refRBSheet={reff}
+        title={'Confirm'}
+        cancelText={'Cancel'}
+        okText={'Yes, Confirm'}
+        height={hp(25)}
+        description={'Are you sure you want to schedule an appointment?'}
+        onCancel={() => reff.current.close()}
+        onOk={async () => {
+          if (booking) return; // Prevent double submit
+          setErrorMsg('');
+          setSuccessMsg('');
+          const validationError = validateInputs();
+          if (validationError) {
+            setErrorMsg(validationError);
+            showAlert(validationError, 'error');
+            return;
+          }
+          reff.current.close();
+          setBooking(true);
+          try {
+            const formattedDate = moment(selectedDate).format('YYYY-MM-DD');
+            const payload = {
+              doctorId: doctor._id,
+              date: formattedDate,
+              slot: selectedTime,
+              patientName: pName,
+              ageGroup,
+              gender: selectedGender,
+              problem,
+            };
+            const res = await appointmentApi.bookAppointment(payload);
+            if (res.data && res.data.success) {
+              setSuccessMsg('Appointment Scheduled Successfully');
+              showAlert('Appointment Scheduled Successfully', 'success');
               setTimeout(() => {
-                title === 'Reschedule Appointment'?navigation.navigate(SCREENS.MYAPPOINTMENT) :navigation.navigate(SCREENS.REVIEWSUMMARY)
-                
-              }, 2500);
-      }} />
+                title === 'Reschedule Appointment' ? navigation.navigate(SCREENS.MYAPPOINTMENT) : navigation.navigate(SCREENS.REVIEWSUMMARY, { appointment: res.data.data, doctor: doctor });
+              }, 1500);
+            } else {
+              setErrorMsg(res.data.message || 'Failed to schedule appointment');
+              showAlert(res.data.message || 'Failed to schedule appointment', 'error');
+            }
+          } catch (err) {
+            setErrorMsg(err.response?.data?.message || 'Failed to schedule appointment');
+            showAlert(err.response?.data?.message || 'Failed to schedule appointment', 'error');
+          } finally {
+            setBooking(false);
+          }
+        }}
+      />
+      {errorMsg ? (
+        <Text style={{ color: Colors.error, textAlign: 'center', marginVertical: hp(1) }}>{errorMsg}</Text>
+      ) : null}
+      {successMsg ? (
+        <Text style={{ color: Colors.success, textAlign: 'center', marginVertical: hp(1) }}>{successMsg}</Text>
+      ) : null}
 
     </ScrollView>
   );

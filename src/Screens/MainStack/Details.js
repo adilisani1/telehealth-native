@@ -197,8 +197,20 @@ const Details = ({
   communicationOptions,
   buttonLabel,
   buttonAction,
+  doctor // <-- add doctor prop for real data
 }) => {
   const { isDarkMode } = useSelector((store) => store.theme);
+
+  // If doctor prop is provided, use real data
+  const realName = doctor?.name || title;
+  const realSpecialization = doctor?.specialization || subtitle;
+  const realProfileImage = doctor?.avatar ? { uri: doctor.avatar } : profileImage;
+  const realStats = doctor ? [
+    { icon: <StatCard iconName="workspace-premium" />, value: doctor.qualifications || 'N/A', label: 'Qualifications', iconColor: '#e8899e' },
+    { icon: <StatCard iconName="star-outline" />, value: doctor.rating || 'N/A', label: 'Ratings', iconColor: '#f7c481' },
+  ] : stats;
+  const realAboutText = doctor?.qualifications || aboutText;
+  const realWorkingTime = doctor?.availability && doctor.availability.length > 0 ? 'Available for appointments' : workingTime;
 
   const styles = StyleSheet.create({
     container: {
@@ -273,17 +285,13 @@ const Details = ({
     <SafeAreaView style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false}>
         <StackHeader showTitle={false} backIconColor={isDarkMode ? Colors.darkTheme.primaryTextColor : Colors.lightTheme.secondryTextColor} />
-
-        {/* Profile Section */}
         <View style={styles.profileContainer}>
-          <Image source={profileImage} style={styles.profileImage} />
-          <Text style={styles.name}>{title}</Text>
-          <Text style={styles.specialization}>{subtitle}</Text>
+          <Image source={realProfileImage} style={styles.profileImage} />
+          <Text style={styles.name}>{realName}</Text>
+          <Text style={styles.specialization}>{realSpecialization}</Text>
         </View>
-
-        {/* Stats Section */}
         <View style={styles.statsContainer}>
-          {stats.map((stat, index) => (
+          {realStats.map((stat, index) => (
             <StatCard
               key={index}
               icon={stat.icon}
@@ -293,22 +301,16 @@ const Details = ({
             />
           ))}
         </View>
-
-        {/* About Section */}
         <View style={styles.aboutContainer}>
           <Text style={styles.sectionTitle}>About</Text>
-          <Text style={styles.aboutText}>{aboutText}</Text>
+          <Text style={styles.aboutText}>{realAboutText}</Text>
         </View>
-
-        {/* Working Time */}
-        {workingTime && (
+        {realWorkingTime && (
           <View style={styles.workingContainer}>
             <Text style={styles.sectionTitle}>Working Time</Text>
-            <Text style={styles.workingText}>{workingTime}</Text>
+            <Text style={styles.workingText}>{realWorkingTime}</Text>
           </View>
         )}
-
-        {/* Communication Options */}
         {communicationOptions && (
           <View>
             <Text style={styles.sectionTitle}>Communication</Text>
@@ -324,8 +326,6 @@ const Details = ({
             ))}
           </View>
         )}
-
-        {/* Action Button */}
         {buttonLabel && (
           <CustomButton
             containerStyle={styles.btn}
@@ -340,4 +340,3 @@ const Details = ({
 };
 
 export default Details;
-

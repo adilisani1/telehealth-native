@@ -1,9 +1,9 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, Image, ScrollView } from 'react-native';
 import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-native-responsive-screen';
 import { RFPercentage } from 'react-native-responsive-fontsize';
 import Icon from 'react-native-vector-icons/MaterialIcons';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 import { Colors } from '../../Constants/themeColors';
 import StackHeader from '../../components/Header/StackHeader';
 import TxtInput from '../../components/TextInput/Txtinput';
@@ -17,24 +17,30 @@ import CustomDropDown from '../../components/DropDown/CustomDropDown';
 import { useAlert } from '../../Providers/AlertContext';
 import { Images } from '../../assets/Images/images';
 import CameraBottomSheet from '../../components/BottomSheets/CameraBottomSheet';
+import authApi from '../../services/authApi';
+import { setUser } from '../../redux/Slices/authSlice';
 
 const UpdateProfile = ({ navigation }) => {
     const { isDarkMode } = useSelector(store => store.theme);
-    const [name, setName] = useState('Adewole Abdulazeez');
-    const [phoneNumber, setPhoneNumber] = useState('0810 666 6666');
-    const [email, setEmail] = useState('example@domainname.com');
+    const { User, token } = useSelector(store => store.auth);
+    const dispatch = useDispatch();
+
+    const [name, setName] = useState(User?.name || '');
+    const [phoneNumber, setPhoneNumber] = useState(User?.phone || '');
+    const [email, setEmail] = useState(User?.email || '');
     const [dateOfBirth, setDateOfBirth] = useState('');
-    const [DOB, setDOB] = useState('');
+    const [DOB, setDOB] = useState(User?.dob ? new Date(User.dob) : null);
     const datePicker_ref = useRef();
     const { showAlert } = useAlert();
-    const [image, setImage] = useState('');
+    const [image, setImage] = useState(null);
+    const [loading, setLoading] = useState(false);
 
     const cameraSheet_ref = useRef()
 
-    const [selectedGender, setSelectedGender] = useState('');
+    const [selectedGender, setSelectedGender] = useState(User?.gender || '');
 
     const Genders = [
-        'Male', 'Female', 'Others', 'Preferred not to say',
+        'male', 'female', 'other'
     ];
 
 
@@ -210,11 +216,40 @@ const UpdateProfile = ({ navigation }) => {
             </View>
 
 
-            <CustomButton containerStyle={styles.btn} text={'Update Profile'} textStyle={[styles.btnText]} onPress={() => {
-                showAlert('Profile Updated Successfully', 'success');
-                setTimeout(() => {
-                    navigation.goBack();
-                }, 2500);
+            <CustomButton containerStyle={styles.btn} text={loading ? 'Updating...' : 'Update Profile'} textStyle={[styles.btnText]} onPress={async () => {
+                setLoading(true);
+                try {
+                    const formData = new FormData();
+                    formData.append('name', name);
+                    formData.append('phone', phoneNumber);
+                    formData.append('gender', selectedGender);
+                    if (DOB) {
+                        formData.append('dob', moment(DOB).format('YYYY-MM-DD'));
+                    }
+                    if (image) {
+                        formData.append('avatar', {
+                            uri: image.path,
+                            type: image.mime,
+                            name: image.path.split('/').pop(),
+                        });
+                    }
+                    
+                    const res = await authApi.updateProfile(formData);
+                    
+                    if (res.data.success) {
+                        dispatch(setUser(res.data.data));
+                        showAlert('Profile Updated Successfully', 'success');
+                        setTimeout(() => {
+                            navigation.goBack();
+                        }, 1500);
+                    } else {
+                        showAlert(res.data.message || 'Profile update failed', 'error');
+                    }
+                } catch (err) {
+                    showAlert(err.response?.data?.message || 'Profile update failed', 'error');
+                } finally {
+                    setLoading(false);
+                }
             }} />
 
 

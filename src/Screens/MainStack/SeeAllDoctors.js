@@ -11,35 +11,55 @@ import { Fonts } from '../../Constants/Fonts';
 import { TouchableOpacity } from 'react-native';
 import { SCREENS } from '../../Constants/Screens';
 import { Images } from '../../assets/Images/images';
+import doctorApi from '../../services/doctorApi';
+import FullLoader from '../../components/Loaders';
 
 
-const doctors = [
-    { id: '1', name: 'Dr. Taiwo', specialization: 'Oncologists', rating: '4.3', reviews: '130', image: Images.dr1 },
-    { id: '2', name: 'Dr. Johnson', specialization: 'Pediatrician', rating: '4.8', reviews: '280', image: Images.dr2  },
-    { id: '3', name: 'Dr. Kenny', specialization: 'Psychologist', rating: '4.3', reviews: '130', image: Images.dr3 },
-    { id: '4', name: 'Dr. Gidado', specialization: 'Neuro Surgeon', rating: '4.8', reviews: '280', image: Images.dr4 },
-    { id: '5', name: 'Dr. Bala', specialization: 'Virologist', rating: '4.3', reviews: '130', image: Images.dr2 },
-    { id: '6', name: 'Dr. Johnson', specialization: 'Radiologist', rating: '4.8', reviews: '280', image: Images.dr3 },
-    { id: '7', name: 'Dr. Taiwo', specialization: 'Oncologists', rating: '4.3', reviews: '130', image: Images.dr1 },
-    { id: '8', name: 'Dr. Gidado', specialization: 'Neuro Surgeon', rating: '4.8', reviews: '280', image: Images.dr4 },
+const SeeAllDoctors = ({ navigation, route }) => {
 
-];
-
-const SeeAllDoctors = ({navigation}) => {
-    const [searchQuery, setSearchQuery] = useState('')
-
+    const [searchQuery, setSearchQuery] = useState('');
+    const [loading, setLoading] = useState(false);
+    const [doctors, setDoctors] = useState([]);
+    const [error, setError] = useState('');
     const { isDarkMode } = useSelector(store => store.theme);
-    const renderDoctorCard = ({ item }) => (
-        <TouchableOpacity onPress={()=> navigation.navigate(SCREENS.DETAILS, {who: 'doctor'})} style={styles.card}>
-            <Image source={item.image} style={styles.image} />
-            <Text style={styles.name}>{item.name}</Text>
-            <Text style={styles.specialization}>{item.specialization}</Text>
-            <View style={styles.ratingContainer}>
-                <Text style={styles.rating}><Icon name='star' color={isDarkMode ? Colors.darkTheme.primaryColor : Colors.lightTheme.primaryColor} />{item.rating}</Text>
-                <Text style={styles.reviews}>({item.reviews} reviews)</Text>
-            </View>
-        </TouchableOpacity>
-    );
+
+    // Fetch available doctors on mount
+    React.useEffect(() => {
+        const fetchDoctors = async () => {
+            setLoading(true);
+            setError('');
+            try {
+                const res = await doctorApi.getAvailableDoctors();
+                const availableDoctors = res.data.data || [];
+                setDoctors(availableDoctors);
+                if (availableDoctors.length === 0) {
+                    setError('No available doctors at the moment. Please check back later.');
+                }
+            } catch (err) {
+                setError(err.response?.data?.message || 'Failed to load available doctors.');
+                setDoctors([]);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchDoctors();
+    }, []);
+
+    const renderDoctorCard = ({ item }) => {
+        return (
+            <TouchableOpacity onPress={()=> {
+                navigation.navigate(SCREENS.DETAILS, {who: 'doctor', doctorId: item._id});
+            }} style={styles.card}>
+                <Image source={item.avatar ? { uri: item.avatar } : Images.dr1} style={styles.image} />
+                <Text style={styles.name}>{item.name}</Text>
+                <Text style={styles.specialization}>{item.specialization}</Text>
+                <View style={styles.ratingContainer}>
+                    {item.rating && <Text style={styles.rating}><Icon name='star' color={isDarkMode ? Colors.darkTheme.primaryColor : Colors.lightTheme.primaryColor} />{item.rating}</Text>}
+                    {item.reviews && <Text style={styles.reviews}>({item.reviews} reviews)</Text>}
+                </View>
+            </TouchableOpacity>
+        );
+    };
 
     const styles = StyleSheet.create({
         container: {
@@ -114,6 +134,7 @@ const SeeAllDoctors = ({navigation}) => {
     });
     return (
         <View style={styles.container}>
+            <FullLoader loading={loading} />
             <StatusBar
                     backgroundColor={isDarkMode ? Colors.darkTheme.secondryColor : Colors.lightTheme.secondryColor}
                     barStyle={isDarkMode? 'light-content': 'dark-content'}
@@ -132,10 +153,19 @@ const SeeAllDoctors = ({navigation}) => {
             {/* Doctor Cards */}
             <FlatList
                 data={doctors}
-                renderItem={renderDoctorCard}
-                keyExtractor={(item) => item.id}
+                keyExtractor={item => item._id || item.id}
                 numColumns={2}
-                contentContainerStyle={styles.cardList}
+                columnWrapperStyle={{ justifyContent: 'space-between', paddingHorizontal: wp(5) }}
+                showsVerticalScrollIndicator={false}
+                ListHeaderComponent={<StackHeader title="All Available Doctors" />}
+                renderItem={renderDoctorCard}
+                ListEmptyComponent={error ? (
+                    <View style={{alignItems: 'center', padding: 16}}>
+                        <Text style={{color: isDarkMode ? Colors.darkTheme.primaryTextColor : Colors.lightTheme.primaryTextColor, fontSize: RFPercentage(2), fontFamily: Fonts.Medium}}>
+                            {error}
+                        </Text>
+                    </View>
+                ) : null}
             />
         </View>
     );

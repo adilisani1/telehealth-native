@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, Image, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, Image, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-native-responsive-screen';
 import { RFPercentage } from 'react-native-responsive-fontsize';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -11,9 +11,13 @@ import { Fonts } from '../../Constants/Fonts';
 import CustomButton from '../../components/Buttons/customButton';
 import { SCREENS } from '../../Constants/Screens';
 import { Images } from '../../assets/Images/images';
+import moment from 'moment';
 
-const ReviewSummary = ({navigation}) => {
+const ReviewSummary = ({navigation, route}) => {
     const { isDarkMode } = useSelector(store => store.theme);
+    // Get real data from route.params
+    const appointment = route?.params?.appointment;
+    const doctor = appointment?.doctor;
     const styles = StyleSheet.create({
         container: {
             flex: 1,
@@ -139,7 +143,7 @@ const ReviewSummary = ({navigation}) => {
             },
     });
     return (
-        <View style={styles.container}>
+        <ScrollView style={styles.container}>
             {/* Header */}
             <StackHeader title={'Review Summary'} headerStyle={{ paddingBottom: hp(1) }}  />
 
@@ -148,7 +152,7 @@ const ReviewSummary = ({navigation}) => {
                 <View style={styles.doctorContainer}>
                     <View>
                         <Image
-                            source={Images.dr2}
+                            source={doctor?.avatar ? { uri: doctor.avatar } : Images.dr2}
                             style={styles.doctorImage}
                         />
                         <TouchableOpacity style={styles.editIcon}>
@@ -157,25 +161,21 @@ const ReviewSummary = ({navigation}) => {
                     </View>
 
                     <View style={styles.doctorDetails}>
-                        <Text style={styles.doctorName}>Dr. Kenny Adeola</Text>
-                        <Text style={styles.doctorSpeciality}>General Practitioner</Text>
+                        <Text style={styles.doctorName}>{doctor?.name || 'Dr. Kenny Adeola'}</Text>
+                        <Text style={styles.doctorSpeciality}>{doctor?.specialization || 'General Practitioner'}</Text>
                         <View style={styles.locationContainer}>
                             <Icon name="map-marker" size={RFPercentage(2)} color={isDarkMode ? Colors.darkTheme.primaryColor : Colors.lightTheme.primaryColor} />
-                            <Text style={styles.locationText}>Lagos, Nigeria</Text>
+                            <Text style={styles.locationText}>{doctor?.location || 'Lagos, Nigeria'}</Text>
                         </View>
                         <View style={styles.ratingContainer}>
                             <AirbnbRating
                                 count={5}
                                 showRating={false}
-                                defaultRating={5}
+                                defaultRating={doctor?.rating || 5}
                                 size={RFPercentage(2)}
-                                // starImage={<Images.food1 />}
-                                // ratingContainerStyle={{marginBottom: 20, width: 50}}
-                                onFinishRating={value => {
-                                    // setRating(value);
-                                }}
+                                onFinishRating={value => {}}
                             />
-                            <Text style={styles.reviewText}>52 Reviews</Text>
+                            <Text style={styles.reviewText}>{doctor?.reviews ? `${doctor.reviews} Reviews` : '52 Reviews'}</Text>
                         </View>
                     </View>
                 </View>
@@ -185,7 +185,7 @@ const ReviewSummary = ({navigation}) => {
                     <Text style={styles.sectionTitle}>Schedule Appointment</Text>
                     <View style={styles.infoRow}>
                         <Text style={styles.infoLabel}>Date & Hour</Text>
-                        <Text style={styles.infoValue}>November 24, 2023 | 8: 30 AM</Text>
+                        <Text style={styles.infoValue}>{appointment ? `${moment(appointment.date).format('MMMM DD, YYYY')} | ${moment(appointment.date).format('hh:mm A')}` : 'November 24, 2023 | 8:30 AM'}</Text>
                     </View>
                     <View style={styles.infoRow}>
                         <Text style={styles.infoLabel}>Package</Text>
@@ -193,7 +193,7 @@ const ReviewSummary = ({navigation}) => {
                     </View>
                     <View style={styles.infoRow}>
                         <Text style={styles.infoLabel}>Booking For</Text>
-                        <Text style={styles.infoValue}>Self</Text>
+                        <Text style={styles.infoValue}>{appointment?.patientName || 'Self'}</Text>
                     </View>
                     <View style={styles.infoRow}>
                         <Text style={styles.infoLabel}>Duration</Text>
@@ -229,7 +229,7 @@ const ReviewSummary = ({navigation}) => {
                 </View>
             </View>
             <CustomButton containerStyle={styles.btn} text={'Pay now'} textStyle={[styles.btnText, {color: isDarkMode ? Colors.darkTheme.primaryBtn.TextColor : Colors.lightTheme.primaryBtn.TextColor,}]} onPress={()=> navigation.navigate(SCREENS.PAYMENTSUCCESS)} />
-        </View>
+        </ScrollView>
     );
 };
 

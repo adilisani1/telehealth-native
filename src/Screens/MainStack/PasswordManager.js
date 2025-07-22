@@ -11,15 +11,43 @@ import { RFPercentage } from 'react-native-responsive-fontsize';
 import TxtInput from '../../components/TextInput/Txtinput';
 import CustomButton from '../../components/Buttons/customButton';
 import { useAlert } from '../../Providers/AlertContext';
+import authApi from '../../services/authApi';
 
 const PasswordManager = ({navigation}) => {
   const { isDarkMode } = useSelector(store => store.theme);
-  const [currentPassword, setCurrentPassword] = useState('');
+  const [oldPassword, setOldPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-    const { showAlert } = useAlert();
+  const { showAlert } = useAlert();
+  const [loading, setLoading] = useState(false);
 
 
+  const handleChangePassword = async () => {
+    if (!oldPassword || !newPassword || !confirmPassword) {
+      showAlert('Please fill in all fields', 'error');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      showAlert('New passwords do not match', 'error');
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await authApi.changePassword({ oldPassword, newPassword });
+      if (res.data.success) {
+        showAlert('Password updated successfully', 'success');
+        setTimeout(() => {
+          navigation.goBack();
+        }, 1500);
+      } else {
+        showAlert(res.data.message || 'Failed to update password', 'error');
+      }
+    } catch (err) {
+      showAlert(err.response?.data?.message || 'Failed to update password', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
 
 
   const styles = StyleSheet.create({
@@ -72,22 +100,16 @@ const PasswordManager = ({navigation}) => {
         {/* <Text style={styles.label} >Current Password</Text>
         <TxtInput placeholder={'Current Password'} style={{ width: wp(90) }} value={currentPassword} secureTextEntry={true} onChangeText={setCurrentPassword} containerStyle={{ paddingHorizontal: wp(2) }} />
         <CustomButton text={'Forget Password?'} textStyle={styles.forgetText} containerStyle={{ width: wp(40), alignSelf: 'flex-end' }} onPress={() => navigation.navigate(SCREENS.FORGET)} /> */}
+        <Text style={styles.label} >Old Password</Text>
+        <TxtInput placeholder={'Old Password'} style={{ width: wp(90) }} inputStyle={{}} value={oldPassword} onChangeText={setOldPassword} secureTextEntry={true} containerStyle={{ paddingHorizontal: wp(2) }} />
         <Text style={styles.label} >Password</Text>
         <TxtInput placeholder={'New Password'} style={{ width: wp(90) }} inputStyle={{}} value={newPassword} onChangeText={setNewPassword} secureTextEntry={true} containerStyle={{ paddingHorizontal: wp(2) }} />
         <Text style={[styles.label, {marginTop: hp(2)}]} >Confirm New Password</Text>
         <TxtInput placeholder={'Confirm Password'} style={{ width: wp(90) }} inputStyle={{}} value={confirmPassword} onChangeText={setConfirmPassword} secureTextEntry={true} containerStyle={{ paddingHorizontal: wp(2) }} />
-        <CustomButton containerStyle={styles.btn} text={'Change Password'} textStyle={[styles.btnText, {color: isDarkMode ? Colors.darkTheme.primaryBtn.TextColor : Colors.lightTheme.primaryBtn.TextColor,}]} onPress={()=> {
-           showAlert('Password Updated Successfully', 'success');
-           setTimeout(() => {
-             navigation.goBack()
-           }, 2500);
-        }} />
-
+        <CustomButton containerStyle={styles.btn} text={loading ? 'Changing...' : 'Change Password'} textStyle={[styles.btnText, {color: isDarkMode ? Colors.darkTheme.primaryBtn.TextColor : Colors.lightTheme.primaryBtn.TextColor,}]} onPress={handleChangePassword} disabled={loading} />
       </View>
-
     </View>
   )
 }
 
 export default PasswordManager
-
