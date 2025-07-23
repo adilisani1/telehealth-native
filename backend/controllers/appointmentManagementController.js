@@ -62,9 +62,9 @@ async function scheduleAppointmentReminder(appointment) {
 export const bookAppointment = async (req, res) => {
   try {
     await markMissedAppointments();
-    const { doctorId, date, slot } = req.body;
-    if (!doctorId || !date || !slot) {
-      return res.status(400).json({ success: false, message: 'doctorId, date, and slot are required' });
+    const { doctorId, date, slot, patientName, ageGroup, gender, problem } = req.body;
+    if (!doctorId || !date || !slot || !patientName || !ageGroup || !gender || !problem) {
+      return res.status(400).json({ success: false, message: 'All fields are required: doctorId, date, slot, patientName, ageGroup, gender, problem' });
     }
     if (!mongoose.Types.ObjectId.isValid(doctorId)) {
       return res.status(400).json({ success: false, message: 'Invalid doctor ID' });
@@ -101,8 +101,12 @@ export const bookAppointment = async (req, res) => {
       date: slotStart.toDate(),
       timezone: doctor.timezone,
       status: 'requested',
+      patientName,
+      ageGroup,
+      gender,
+      problem
     });
-    await AuditLog.create({ user: req.user._id, action: 'book_appointment', target: 'Appointment', targetId: appointment._id, details: JSON.stringify({ doctorId, date, slot, timezone: doctor.timezone }) });
+    await AuditLog.create({ user: req.user._id, action: 'book_appointment', target: 'Appointment', targetId: appointment._id, details: JSON.stringify({ doctorId, date, slot, timezone: doctor.timezone, patientName, ageGroup, gender, problem }) });
     // Send notification to doctor
     await Notification.create({
       user: doctorId,

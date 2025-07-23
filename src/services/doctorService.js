@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { getToken } from '../utils/tokenStorage';
 
 const BASE_URL = 'https://mrvwhr8v-5000.inc1.devtunnels.ms';
 
@@ -68,6 +69,32 @@ export const getDoctorCompletedAppointments = async (token) => {
 export const getDoctorAppointmentHistory = async (token) => {
   try {
     const response = await doctorApi.get('/api/doctor/appointments/history', {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const fetchCompletedAppointments = async () => {
+  try {
+    const token = await getToken();
+    const response = await doctorApi.get('/api/doctor/appointments/history', {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    return response.data?.data?.history || [];
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const saveConsultationNotes = async (appointmentId, notesData) => {
+  try {
+    const token = await getToken();
+    const response = await doctorApi.post(`/api/doctor/appointments/${appointmentId}/notes`, {
+      ...notesData
+    }, {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     });
     return response.data;

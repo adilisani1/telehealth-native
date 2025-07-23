@@ -12,7 +12,11 @@ router.post('/book',
   [
     body('doctorId').notEmpty().withMessage('Doctor ID is required'),
     body('date').notEmpty().withMessage('Date is required'),
-    body('slot').notEmpty().withMessage('Slot is required')
+    body('slot').notEmpty().withMessage('Slot is required'),
+    body('patientName').notEmpty().withMessage('Patient name is required'),
+    body('ageGroup').notEmpty().withMessage('Age group is required'),
+    body('gender').notEmpty().withMessage('Gender is required'),
+    body('problem').notEmpty().withMessage('Problem description is required')
   ],
   bookAppointment
 );

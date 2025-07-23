@@ -10,6 +10,11 @@ const appointmentSchema = new mongoose.Schema({
   notes: { type: String },
   prescription: { type: mongoose.Schema.Types.ObjectId, ref: 'Prescription' },
   paymentStatus: { type: String, enum: ['pending', 'paid', 'failed'], default: 'pending' },
+  // Patient details for the appointment
+  patientName: { type: String, required: true },
+  ageGroup: { type: String, required: true },
+  gender: { type: String, required: true },
+  problem: { type: String, required: true },
 }, { timestamps: true });
 
 const Appointment = mongoose.model('Appointment', appointmentSchema);

@@ -14,7 +14,7 @@ import { Fonts } from '../../Constants/Fonts';
 import { useSelector } from 'react-redux';
 import { Colors } from '../../Constants/themeColors';
 
-const CustomCalender = () => {
+const CustomCalender = ({ onDateSelected, highlightDays = [] }) => {
   const { isDarkMode } = useSelector(store => store.theme);
   const [currentDate, setCurrentDate] = useState(moment());
   const [selectedDate, setSelectedDate] = useState(moment().date());
@@ -27,9 +27,13 @@ const CustomCalender = () => {
     const dates = [];
     for (let day = startOfMonth.date(); day <= endOfMonth.date(); day++) {
       const date = moment(currentDate).date(day);
+      const dayName = date.format('dddd'); // Full day name for matching with availability
       dates.push({
         date: day,
         day: date.format('ddd').toUpperCase(),
+        dayName: dayName,
+        fullDate: date.toDate(),
+        isAvailable: highlightDays.includes(dayName), // Check if this day is available
       });
     }
     return dates;
@@ -42,12 +46,28 @@ const CustomCalender = () => {
 
   // Navigate to the previous month
   const handlePreviousMonth = () => {
-    setCurrentDate(moment(currentDate).subtract(1, 'month'));
+    const newDate = moment(currentDate).subtract(1, 'month');
+    setCurrentDate(newDate);
+    // Reset selected date to first day of new month
+    setSelectedDate(1);
+    // Call parent callback with first available date of new month
+    if (onDateSelected) {
+      const firstDate = newDate.date(1).toDate();
+      onDateSelected(firstDate);
+    }
   };
 
   // Navigate to the next month
   const handleNextMonth = () => {
-    setCurrentDate(moment(currentDate).add(1, 'month'));
+    const newDate = moment(currentDate).add(1, 'month');
+    setCurrentDate(newDate);
+    // Reset selected date to first day of new month
+    setSelectedDate(1);
+    // Call parent callback with first available date of new month
+    if (onDateSelected) {
+      const firstDate = newDate.date(1).toDate();
+      onDateSelected(firstDate);
+    }
   };
 
   const calendarData = generateCalendarData();
@@ -58,13 +78,23 @@ const CustomCalender = () => {
       style={[
         styles.dateItem,
         selectedDate === item.date && styles.selectedDateItem,
+        item.isAvailable && styles.availableDateItem, // Highlight available days
+        !item.isAvailable && styles.unavailableDateItem, // Dim unavailable days
       ]}
-      onPress={() => setSelectedDate(item.date)}
+      onPress={() => {
+        setSelectedDate(item.date);
+        // Call the parent callback with the full date
+        if (onDateSelected) {
+          onDateSelected(item.fullDate);
+        }
+      }}
+      disabled={!item.isAvailable} // Disable unavailable days
     >
       <Text
         style={[
           styles.dateText,
           selectedDate === item.date && styles.selectedDateText,
+          !item.isAvailable && styles.unavailableDateText,
         ]}
       >
         {item.date}
@@ -73,6 +103,7 @@ const CustomCalender = () => {
         style={[
           styles.dayText,
           selectedDate === item.date && styles.selectedDayText,
+          !item.isAvailable && styles.unavailableDayText,
         ]}
       >
         {item.day}
@@ -117,6 +148,14 @@ const CustomCalender = () => {
     selectedDateItem: {
       backgroundColor: isDarkMode?Colors.darkTheme.primaryColor: Colors.lightTheme.primaryColor,
     },
+    availableDateItem: {
+      borderColor: isDarkMode ? Colors.darkTheme.primaryColor : Colors.lightTheme.primaryColor,
+      borderWidth: 2,
+    },
+    unavailableDateItem: {
+      opacity: 0.3,
+      backgroundColor: isDarkMode ? Colors.darkTheme.BorderGrayColor : Colors.lightTheme.BorderGrayColor,
+    },
     dateText: {
       fontSize: RFPercentage(2.5),
       fontFamily: Fonts.Bold,
@@ -132,6 +171,12 @@ const CustomCalender = () => {
     },
     selectedDayText: {
       color: isDarkMode? Colors.darkTheme.primaryTextColor: Colors.white,
+    },
+    unavailableDateText: {
+      color: isDarkMode ? Colors.darkTheme.BorderGrayColor : Colors.lightTheme.BorderGrayColor,
+    },
+    unavailableDayText: {
+      color: isDarkMode ? Colors.darkTheme.BorderGrayColor : Colors.lightTheme.BorderGrayColor,
     },
   });
   return (

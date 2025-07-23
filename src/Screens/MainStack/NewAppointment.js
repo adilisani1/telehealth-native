@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -30,32 +30,114 @@ import appointmentApi from '../../services/appointmentApi';
 const NewAppointment = ({navigation, route}) => {
   const { title, doctor } = route.params;
   const doctorAvailability = doctor.availability || [];
+  
+  // Debug: Log doctor availability data
+  useEffect(() => {
+    console.log('Doctor Availability Data:', JSON.stringify(doctorAvailability, null, 2));
+  }, []);
+
+  // Set initial selected date to first available day
+  useEffect(() => {
+    if (availableDays.length > 0) {
+      // Find the first available date for the current month
+      const today = moment();
+      const currentMonth = today.month();
+      const currentYear = today.year();
+      
+      // Look for the first available day starting from today
+      for (let day = today.date(); day <= today.daysInMonth(); day++) {
+        const checkDate = moment().year(currentYear).month(currentMonth).date(day);
+        const dayName = checkDate.format('dddd');
+        
+        if (availableDays.includes(dayName)) {
+          setSelectedDate(checkDate.toDate());
+          break;
+        }
+      }
+    }
+  }, [doctorAvailability]);
+
+  // Helper: Get available days from doctor's availability (only days with slots)
+  const availableDays = doctorAvailability
+    .filter(a => a.slots && a.slots.length > 0)
+    .map(a => a.day);
+
+  // Helper: Get available slots for selected day
+  const getAvailableSlotsForDay = (day) => {
+    const dayObj = doctorAvailability.find(a => a.day === day);
+    // Only return slots if the day exists and has actual slots
+    return dayObj && dayObj.slots && dayObj.slots.length > 0 ? dayObj.slots : [];
+  };
+
+  // State for selected date and day
+  const [selectedDate, setSelectedDate] = useState(moment().toDate());
+  const [selectedDay, setSelectedDay] = useState(moment().format('dddd'));
+  
   const [selectedTime, setSelectedTime] = useState('');
   const [selectedGender, setSelectedGender] = useState('');
   const { isDarkMode } = useSelector(store => store.theme);
-  const [pName, setPName] = useState('')
-  const [ageGroup, setAgeGroup] = useState('')
-  const reff = useRef()
-    const { showAlert } = useAlert();
+  const { User } = useSelector(store => store.auth); // Get user data from Redux
   
+  // Auto-populate patient details from user profile
+  const [pName, setPName] = useState(User?.name || '');
+  const [ageGroup, setAgeGroup] = useState('');
+  const reff = useRef();
+  const { showAlert } = useAlert();
   
-      const Genders = [
-         'Male', 'Female','Others', 'Preferred not to say',
-      ];
-      const Ages = [
-         '01 - 05', '06 - 10','11 - 15', '16 - 20', '21 - 30', '31 -35', '36 - 40', '41 - 55', '45 - 50', '51- 55', '56 - 60', '61 - 65', '66 - 70', '71 - 75', '76 - 80', '81 - 85', '86 - 90', '91 - 95', '96 - 100',
-      ];
-  const [problem, setProblem] = useState('')
+  // Auto-populate gender from user profile
+  useEffect(() => {
+    if (User?.gender) {
+      const genderMap = {
+        'male': 'Male',
+        'female': 'Female',
+        'other': 'Others'
+      };
+      setSelectedGender(genderMap[User.gender.toLowerCase()] || '');
+    }
+  }, [User]);
+
+  // Auto-populate age group based on user's date of birth
+  useEffect(() => {
+    if (User?.dob) {
+      const age = moment().diff(moment(User.dob), 'years');
+      let ageGroupValue = '';
+      
+      if (age >= 1 && age <= 5) ageGroupValue = '01 - 05';
+      else if (age >= 6 && age <= 10) ageGroupValue = '06 - 10';
+      else if (age >= 11 && age <= 15) ageGroupValue = '11 - 15';
+      else if (age >= 16 && age <= 20) ageGroupValue = '16 - 20';
+      else if (age >= 21 && age <= 30) ageGroupValue = '21 - 30';
+      else if (age >= 31 && age <= 35) ageGroupValue = '31 -35';
+      else if (age >= 36 && age <= 40) ageGroupValue = '36 - 40';
+      else if (age >= 41 && age <= 44) ageGroupValue = '41 - 55';
+      else if (age >= 45 && age <= 50) ageGroupValue = '45 - 50';
+      else if (age >= 51 && age <= 55) ageGroupValue = '51- 55';
+      else if (age >= 56 && age <= 60) ageGroupValue = '56 - 60';
+      else if (age >= 61 && age <= 65) ageGroupValue = '61 - 65';
+      else if (age >= 66 && age <= 70) ageGroupValue = '66 - 70';
+      else if (age >= 71 && age <= 75) ageGroupValue = '71 - 75';
+      else if (age >= 76 && age <= 80) ageGroupValue = '76 - 80';
+      else if (age >= 81 && age <= 85) ageGroupValue = '81 - 85';
+      else if (age >= 86 && age <= 90) ageGroupValue = '86 - 90';
+      else if (age >= 91 && age <= 95) ageGroupValue = '91 - 95';
+      else if (age >= 96 && age <= 100) ageGroupValue = '96 - 100';
+      
+      setAgeGroup(ageGroupValue);
+    }
+  }, [User]);
+  
+  const Genders = [
+     'Male', 'Female','Others', 'Preferred not to say',
+  ];
+  const Ages = [
+     '01 - 05', '06 - 10','11 - 15', '16 - 20', '21 - 30', '31 -35', '36 - 40', '41 - 55', '45 - 50', '51- 55', '56 - 60', '61 - 65', '66 - 70', '71 - 75', '76 - 80', '81 - 85', '86 - 90', '91 - 95', '96 - 100',
+  ];
+  const [problem, setProblem] = useState('');
   const [slots, setSlots] = useState([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [booking, setBooking] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
-
-
-  const morningTimes = ['09:00 AM', '09:30 AM', '10:00 AM', '10:30 AM'];
-  const afternoonTimes = ['12:00 PM', '12:30 PM', '01:30 PM', '02:00 PM'];
-  const eveningTimes = ['03:00 PM', '04:30 PM', '05:00 PM'];
 
 
 
@@ -278,26 +360,29 @@ const renderDateItem = (timestamp) => {
   });
 
 
-  // Helper: Get available days from doctor's availability
-  const availableDays = doctorAvailability.map(a => a.day);
-
-  // Helper: Get available slots for selected day
-  const getAvailableSlotsForDay = (day) => {
-    const dayObj = doctorAvailability.find(a => a.day === day);
-    return dayObj ? dayObj.slots : [];
-  };
-
-  // State for selected date and day
-  const [selectedDate, setSelectedDate] = useState(moment().toDate());
-  const [selectedDay, setSelectedDay] = useState(moment().format('dddd'));
-
-  // Update selectedDay when selectedDate changes
-  React.useEffect(() => {
-    setSelectedDay(moment(selectedDate).format('dddd'));
-  }, [selectedDate]);
+  // Update selectedDay when selectedDate changes and reset selected time
+  useEffect(() => {
+    const newDay = moment(selectedDate).format('dddd');
+    setSelectedDay(newDay);
+    setSelectedTime(''); // Reset selected time when date changes
+    
+    // Debug: Log selected day and available slots
+    console.log(`Selected Date: ${moment(selectedDate).format('YYYY-MM-DD')}`);
+    console.log(`Selected Day: ${newDay}`);
+    const slots = getAvailableSlotsForDay(newDay);
+    console.log(`Available Slots:`, slots);
+  }, [selectedDate, doctorAvailability]);
 
   // Use available slots for selected day
   const availableSlots = getAvailableSlotsForDay(selectedDay);
+  
+  // Debug: Log available slots for rendering
+  console.log(`=== RENDER ===`);
+  console.log(`Selected Day: ${selectedDay}`);
+  console.log(`Available Days: [${availableDays.join(', ')}]`);
+  console.log(`Available Slots Length: ${availableSlots.length}`);
+  console.log(`Available Slots:`, availableSlots);
+  console.log(`=============`);
 
   // Helper: Validate inputs
   const validateInputs = () => {
@@ -322,18 +407,20 @@ const renderDateItem = (timestamp) => {
         />
         <Text style={styles.sectionTitle}>Available Time</Text>
         {availableSlots.length === 0 && (
-          <Text style={{ color: Colors.lightTheme.primaryColor, fontSize: RFPercentage(2), marginBottom: hp(1), textAlign: 'center' }}>
-            Sorry, there are no available times on the selected day. Please choose another day.
+          <Text style={{ color: Colors.error, fontSize: RFPercentage(2), marginBottom: hp(1), textAlign: 'center' }}>
+            Sorry, there are no available times on {moment(selectedDate).format('dddd, MMMM Do')}. Please choose another day.
           </Text>
         )}
-        <FlatList
-          horizontal
-          data={availableSlots}
-          renderItem={renderTimeItem}
-          keyExtractor={(item) => item}
-          showsHorizontalScrollIndicator={false}
-          style={styles.flatList}
-        />
+        {availableSlots.length > 0 && (
+          <FlatList
+            horizontal
+            data={availableSlots}
+            renderItem={renderTimeItem}
+            keyExtractor={(item) => item}
+            showsHorizontalScrollIndicator={false}
+            style={styles.flatList}
+          />
+        )}
         <Text style={styles.sectionTitle}>Patient Details</Text>
         <Text style={[styles.label, { marginTop: wp(0) }]} >Full Name</Text>
         <TxtInput placeholder={'John Doe'} style={{ flex: 1, }} value={pName} onChangeText={setPName} containerStyle={{ paddingHorizontal: wp(3) }} />
