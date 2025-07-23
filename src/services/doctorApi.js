@@ -103,6 +103,11 @@ export const postDoctorAdminMessage = async (message) => {
   });
 };
 
+// Get top-ranked doctors by completed appointments
+export const getTopRankedDoctors = async () => {
+  return api.get('/api/doctor/top-ranked');
+};
+
 export default {
   getDoctorDashboard,
   getDoctorUpcomingAppointments,
@@ -117,4 +122,5 @@ export default {
   getAvailableDoctors,
   getDoctorAdminChat,
   postDoctorAdminMessage,
+  getTopRankedDoctors,
 };

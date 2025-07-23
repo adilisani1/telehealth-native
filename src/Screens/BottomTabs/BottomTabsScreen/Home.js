@@ -166,20 +166,38 @@ const Home = ({navigation}) => {
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [upcomingAppointments, setUpcomingAppointments] = useState([]);
+  const [topRankedDoctors, setTopRankedDoctors] = useState([]);
+  const [error, setError] = useState(null);
+
+  // Unified dashboard data fetch
+  const fetchDashboardData = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [appointmentsRes, topDoctorsRes] = await Promise.all([
+        patientApi.getUpcomingAppointments(),
+        doctorApi.getTopRankedDoctors()
+      ]);
+      setUpcomingAppointments(appointmentsRes.data.data.upcoming || []);
+      setTopRankedDoctors(topDoctorsRes.data.data || []);
+    } catch (err) {
+      setUpcomingAppointments([]);
+      setTopRankedDoctors([]);
+      setError('Failed to load dashboard data. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    (async () => {
-      setLoading(true);
-      try {
-        const res = await patientApi.getUpcomingAppointments();
-        console.log('Upcoming Appointments:', res.data.data.upcoming);
-        setUpcomingAppointments(res.data.data.upcoming || []);
-      } catch (err) {
-        setUpcomingAppointments([]);
-      } finally {
-        setLoading(false);
-      }
-    })();
+    fetchDashboardData();
+  }, []);
+
+  // Pull-to-refresh handler
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await fetchDashboardData();
+    setRefreshing(false);
   }, []);
 
   const styles = StyleSheet.create({
@@ -406,59 +424,37 @@ const Home = ({navigation}) => {
     </View>
   );
 
-  // Simulate API fetch for dashboard data
-  const fetchDashboardData = async () => {
-    setLoading(true);
-    // TODO: Replace with real API calls for doctors, schedule, etc.
-    await new Promise(resolve => setTimeout(resolve, 1200));
-    setLoading(false);
-  };
-
-  // Initial load
-  React.useEffect(() => {
-    fetchDashboardData();
-  }, []);
-
-  // Only fetch new data when loading is true
-  React.useEffect(() => {
-    if (loading) {
-      (async () => {
-        try {
-          // Fetch upcoming appointments
-          const res = await patientApi.getUpcomingAppointments();
-          setUpcomingAppointments(res.data.data.upcoming || []);
-          // Fetch available doctors
-        } catch (err) {
-          setUpcomingAppointments([]);
-        }
-      })();
-    }
-  }, [loading]);
-
-  // Pull-to-refresh handler
-  const onRefresh = useCallback(async () => {
-    setRefreshing(true);
-    await fetchDashboardData();
-    setRefreshing(false);
-  }, []);
-
   return (
     <View style={styles.container}>
       {loading && <FullLoader loading={true} />}
-      <FlatList
-        data={flatlistArray}
-        keyExtractor={item => item.id}
-        showsVerticalScrollIndicator={false}
-        ListHeaderComponent={renderHeader}
-        renderItem={({item}) => <DoctorCard item={item} />}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            colors={[Colors.lightTheme.primaryColor]}
-          />
-        }
-      />
+      {error && !loading ? (
+        <Text style={{color: 'red', textAlign: 'center', marginTop: 20}}>{error}</Text>
+      ) : (
+        <FlatList
+          data={topRankedDoctors}
+          keyExtractor={item => item.id || item._id}
+          showsVerticalScrollIndicator={false}
+          ListHeaderComponent={renderHeader}
+          renderItem={({item}) => <DoctorCard item={{
+              id: item._id,
+              name: item.name,
+              specialization: item.specialization,
+              completedAppointments: item.completedAppointments,
+              rating : item?.rating ? item.rating : 0.0,
+              reviews : item?.reviews ? item.reviews : 0
+            }} />}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={[Colors.lightTheme.primaryColor]}
+            />
+          }
+          ListEmptyComponent={!loading && !error ? (
+            <Text style={{margin: 10}}>No top doctors found.</Text>
+          ) : null}
+        />
+      )}
     </View>
   );
 };
