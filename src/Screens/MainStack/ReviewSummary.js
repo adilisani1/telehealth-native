@@ -17,6 +17,8 @@ const ReviewSummary = ({navigation, route}) => {
     const { isDarkMode } = useSelector(store => store.theme);
     // Get real data from route.params
     const appointment = route?.params?.appointment;
+    console.log("Appointment Data:", appointment);
+    
     const doctor = appointment?.doctor;
     const styles = StyleSheet.create({
         container: {

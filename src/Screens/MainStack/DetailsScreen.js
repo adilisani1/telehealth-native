@@ -38,6 +38,8 @@ const DetailsScreen = ({ navigation, route }) => {
         .then(res => setDoctor(res.data.data))
         .catch(err => setError(err.response?.data?.message || 'Failed to load doctor details.'))
         .finally(() => setLoading(false));
+        console.log(doctor);
+        
     }
   }, [who, doctorId]);
 

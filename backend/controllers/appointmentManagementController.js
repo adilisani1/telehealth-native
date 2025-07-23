@@ -115,7 +115,10 @@ export const bookAppointment = async (req, res) => {
     await sendAppointmentConfirmation(req.user, appointment, doctor, req.user);
     // Schedule reminder (placeholder)
     await scheduleAppointmentReminder(appointment);
-    res.status(201).json({ success: true, data: appointment, message: 'Appointment booked successfully' });
+
+    const populatedAppointment = await Appointment.findById(appointment._id).populate('doctor');
+
+    res.status(201).json({ success: true, data: populatedAppointment, message: 'Appointment booked successfully' });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

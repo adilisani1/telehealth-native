@@ -1,14 +1,25 @@
 import React from 'react';
-import { View, Text, Image, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, Image } from 'react-native';
 import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-native-responsive-screen';
 import { RFPercentage } from 'react-native-responsive-fontsize';
 import { useSelector } from 'react-redux';
 import { Colors } from '../../Constants/themeColors';
 import { Fonts } from '../../Constants/Fonts';
-// import Image from '../../assets/Images/PngImage.png';
 
-const UpcomingCard = () => {
+const UpcomingCard = ({ appointment }) => {
     const { isDarkMode } = useSelector(store => store.theme);
+
+    // Default values if no appointment data
+    const doctorName = appointment?.doctor?.name || 'No upcoming appointment';
+    const specialization = appointment?.doctor?.specialization || '';
+    const appointmentDate = appointment?.date ? new Date(appointment.date).toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true
+    }) : 'Schedule your next visit';
+    const doctorImage = appointment?.doctor?.avatar || require('../../assets/Images/PngImage.png');
 
 
     const styles = StyleSheet.create({
@@ -58,20 +69,29 @@ const UpcomingCard = () => {
         width: wp(20),
         height: wp(20),
       },
-    });
-  return (
+    }); 
+    if (!appointment) {
+      return (
+        <View style={styles.cardContainer}>
+          <View style={styles.textContainer}>
+            <Text style={styles.doctorName}>No upcoming appointment scheduled</Text>
+            <Text style={styles.specialization}>Tap "See all" or "Find Doctors near you" to book your next appointment.</Text>
+          </View>
+        </View>
+      );
+    }  return (
     <View style={styles.cardContainer}>
       <View style={styles.textContainer}>
-        <Text style={styles.doctorName}>Dr. Idris</Text>
-        <Text style={styles.specialization}>Cardiovascular</Text>
+        <Text style={styles.doctorName}>{doctorName}</Text>
+        {specialization && <Text style={styles.specialization}>{specialization}</Text>}
         <View style={styles.scheduleContainer}>
           <Text style={styles.scheduleText}>
-            <Text style={styles.clockIcon}>⏰</Text> Nov 24, 9:00am
+            <Text style={styles.clockIcon}>⏰</Text> {appointmentDate}
           </Text>
         </View>
       </View>
       <Image
-        source={require('../../assets/Images/PngImage.png')} // Replace with the actual image URL
+        source={typeof doctorImage === 'string' ? { uri: doctorImage } : doctorImage}
         style={styles.doctorImage}
       />
     </View>

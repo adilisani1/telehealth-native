@@ -30,6 +30,8 @@ const SeeAllDoctors = ({ navigation, route }) => {
             setError('');
             try {
                 const res = await doctorApi.getAvailableDoctors();
+                console.log("Error");
+                
                 const availableDoctors = res.data.data || [];
                 setDoctors(availableDoctors);
                 if (availableDoctors.length === 0) {

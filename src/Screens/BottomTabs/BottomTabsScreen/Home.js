@@ -1,5 +1,5 @@
-import React, {useState} from 'react';
-import {View, Text, StyleSheet, FlatList, Image, TouchableOpacity} from 'react-native';
+import React, {useState, useCallback, useEffect} from 'react';
+import {View, Text, StyleSheet, FlatList, Image, TouchableOpacity, RefreshControl} from 'react-native';
 import {Colors} from '../../../Constants/themeColors';
 import {useSelector} from 'react-redux';
 import CustomButton from '../../../components/Buttons/customButton';
@@ -16,7 +16,8 @@ import {SCREENS} from '../../../Constants/Screens';
 import {Images} from '../../../assets/Images/images';
 import FullLoader from '../../../components/Loaders';
 import CategoryTab from './../../../components/FeatureCard/FeatureCard';
-
+import patientApi from '../../../services/patientApi';
+import doctorApi from '../../../services/doctorApi';
 
 
 const doctors = [
@@ -158,11 +159,28 @@ const hospitals = [
 
 const Home = ({navigation}) => {
   const {isDarkMode} = useSelector(store => store.theme);
-  const { User: reduxUser } = useSelector(store => store.auth) || {};
-  const User = reduxUser || {};
+  const { User } = useSelector(store => store.auth); // Get user from Redux
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Doctors');
   const [flatlistArray, setFlatListArray] = useState(doctors);
+  const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [upcomingAppointments, setUpcomingAppointments] = useState([]);
+
+  useEffect(() => {
+    (async () => {
+      setLoading(true);
+      try {
+        const res = await patientApi.getUpcomingAppointments();
+        console.log('Upcoming Appointments:', res.data.data.upcoming);
+        setUpcomingAppointments(res.data.data.upcoming || []);
+      } catch (err) {
+        setUpcomingAppointments([]);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
 
   const styles = StyleSheet.create({
     container: {
@@ -281,10 +299,7 @@ const Home = ({navigation}) => {
       {/* Header */}
       <View style={styles.rowView}>
         <View style={styles.header}>
-          <Image
-            source={User?.profileImage ? { uri: User.profileImage } : Images.dr1}
-            style={styles.doctorImage}
-          />
+          <Image source={Images.dr1} style={styles.doctorImage} />
           <View>
             <Text style={styles.greeting}>Hi, {User?.name || 'User'}</Text>
             <Text style={styles.subGreeting}>How are you today?</Text>
@@ -351,7 +366,11 @@ const Home = ({navigation}) => {
             onPress={() => navigation.navigate(SCREENS.BOOKING)}
           />
         </View>
-        <UpcomingCard />
+        {upcomingAppointments.length > 0 ? (
+          <UpcomingCard appointment={upcomingAppointments[0]} />
+        ) : (
+          <UpcomingCard />
+        )}
       </View>
 
       <View style={styles.featureRow}>
@@ -387,14 +406,58 @@ const Home = ({navigation}) => {
     </View>
   );
 
+  // Simulate API fetch for dashboard data
+  const fetchDashboardData = async () => {
+    setLoading(true);
+    // TODO: Replace with real API calls for doctors, schedule, etc.
+    await new Promise(resolve => setTimeout(resolve, 1200));
+    setLoading(false);
+  };
+
+  // Initial load
+  React.useEffect(() => {
+    fetchDashboardData();
+  }, []);
+
+  // Only fetch new data when loading is true
+  React.useEffect(() => {
+    if (loading) {
+      (async () => {
+        try {
+          // Fetch upcoming appointments
+          const res = await patientApi.getUpcomingAppointments();
+          setUpcomingAppointments(res.data.data.upcoming || []);
+          // Fetch available doctors
+        } catch (err) {
+          setUpcomingAppointments([]);
+        }
+      })();
+    }
+  }, [loading]);
+
+  // Pull-to-refresh handler
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await fetchDashboardData();
+    setRefreshing(false);
+  }, []);
+
   return (
     <View style={styles.container}>
+      {loading && <FullLoader loading={true} />}
       <FlatList
         data={flatlistArray}
         keyExtractor={item => item.id}
         showsVerticalScrollIndicator={false}
         ListHeaderComponent={renderHeader}
         renderItem={({item}) => <DoctorCard item={item} />}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[Colors.lightTheme.primaryColor]}
+          />
+        }
       />
     </View>
   );
