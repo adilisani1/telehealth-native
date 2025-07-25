@@ -21,13 +21,17 @@ import {Fonts} from '../../Constants/Fonts';
 import StackHeader from '../../components/Header/StackHeader';
 import CustomButton from '../../components/Buttons/customButton';
 import {useAlert} from '../../Providers/AlertContext';
-import { updateDoctorAvailability } from '../../services/doctorService';
+import { updateDoctorAvailability, getDoctorAvailability } from '../../services/doctorService';
 import { getToken } from '../../utils/tokenStorage';
 
 const ManageAvailability = ({navigation}) => {
   const {isDarkMode} = useSelector(store => store.theme);
+  const {User, userId} = useSelector(state => state.auth);
   const {showAlert} = useAlert();
   const theme = isDarkMode ? Colors.darkTheme : Colors.lightTheme;
+
+  // Get the logged-in doctor's ID from Redux state
+  const doctorId = userId || User?._id || User?.id;
 
   const [availability, setAvailability] = useState({
     monday: { enabled: true, slots: [{ start: '09:00', end: '10:00' }] },
@@ -40,22 +44,28 @@ const ManageAvailability = ({navigation}) => {
   });
   const [timezone, setTimezone] = useState(Intl?.DateTimeFormat().resolvedOptions().timeZone || '');
 
-  // TODO: Replace with dynamic doctorId from auth/user context
-  const doctorId = '6873fedd9be7a36e6e1bdbf6';
+  // Validate that we have a doctor ID
+  useEffect(() => {
+    if (!doctorId) {
+      showAlert('Unable to identify logged-in doctor. Please login again.', 'error');
+      navigation.goBack();
+    }
+  }, [doctorId]);
 
   useEffect(() => {
     const fetchAvailability = async () => {
+      if (!doctorId) return;
+      
+      setInitialLoading(true);
       try {
         const token = await getToken();
-        const res = await fetch(`https://mrvwhr8v-5000.inc1.devtunnels.ms/api/doctor/public/${doctorId}`, {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-        });
-        const data = await res.json();
-        if (data && data.data && data.data.availability && data.data.timezone) {
+        console.log('Fetching availability for doctor:', doctorId);
+        
+        // Use the doctorService function instead of direct API call
+        const doctorData = await getDoctorAvailability(token);
+        console.log('Doctor data received:', doctorData);
+        
+        if (doctorData && doctorData.availability && doctorData.timezone) {
           const newAvailability = {
             monday: { enabled: false, slots: [] },
             tuesday: { enabled: false, slots: [] },
@@ -65,7 +75,7 @@ const ManageAvailability = ({navigation}) => {
             saturday: { enabled: false, slots: [] },
             sunday: { enabled: false, slots: [] },
           };
-          data.data.availability.forEach(dayObj => {
+          doctorData.availability.forEach(dayObj => {
             const key = dayObj.day.toLowerCase();
             if (newAvailability[key]) {
               newAvailability[key].enabled = dayObj.slots.length > 0;
@@ -76,16 +86,25 @@ const ManageAvailability = ({navigation}) => {
             }
           });
           setAvailability(newAvailability);
-          setTimezone(data.data.timezone);
+          setTimezone(doctorData.timezone);
+          console.log('Doctor availability loaded successfully');
+        } else {
+          console.log('No availability data found, using defaults');
+          showAlert('No existing availability found. Setting up defaults.', 'info');
         }
-      } catch (e) {
-        // Optionally show error or fallback
+      } catch (error) {
+        console.error('Error fetching doctor availability:', error);
+        showAlert('Failed to load availability data. Using defaults.', 'warning');
+      } finally {
+        setInitialLoading(false);
       }
     };
+
     fetchAvailability();
-  }, []);
+  }, [doctorId]);
   const [picker, setPicker] = useState({ visible: false, day: null, idx: null, field: null });
   const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [error, setError] = useState('');
 
   const days = [
@@ -176,6 +195,11 @@ const ManageAvailability = ({navigation}) => {
   };
 
   const handleSave = async () => {
+    if (!doctorId) {
+      showAlert('Unable to identify logged-in doctor. Please login again.', 'error');
+      return;
+    }
+
     setLoading(true);
     setError('');
     try {
@@ -188,14 +212,24 @@ const ManageAvailability = ({navigation}) => {
               .map(slot => `${slot.start}-${slot.end}`)
           : [],
       }));
-      if (!timezone) throw new Error('Timezone is required');
+      
+      if (!timezone) {
+        throw new Error('Timezone is required');
+      }
+      
+      console.log('Saving availability for doctor:', doctorId);
+      console.log('Availability data:', availabilityArray);
+      console.log('Timezone:', timezone);
+      
       const token = await getToken();
       await updateDoctorAvailability(token, availabilityArray, timezone);
       showAlert('Availability updated successfully', 'success');
       navigation.goBack();
     } catch (e) {
-      setError(e?.message || 'Failed to update availability.');
-      showAlert(e?.message || 'Failed to update availability.', 'error');
+      console.error('Error saving availability:', e);
+      const errorMessage = e?.message || 'Failed to update availability.';
+      setError(errorMessage);
+      showAlert(errorMessage, 'error');
     } finally {
       setLoading(false);
     }
@@ -336,79 +370,94 @@ const ManageAvailability = ({navigation}) => {
   return (
     <SafeAreaView style={styles.container}>
       <StackHeader title="Manage Availability" />
-      <ScrollView
-        style={styles.scrollContainer}
-        contentContainerStyle={{paddingBottom: hp(5)}}>
-        <Text style={styles.title}>Set Your Weekly Schedule</Text>
-        <View style={{ marginBottom: hp(2) }}>
-          <Text style={{ color: theme.primaryTextColor, fontFamily: Fonts.Medium, fontSize: RFPercentage(2) }}>Timezone</Text>
-          <TextInput
-            style={{
-              borderWidth: 1,
-              borderColor: theme.BorderGrayColor,
-              borderRadius: wp(2),
-              padding: wp(3),
-              color: theme.primaryTextColor,
-              fontFamily: Fonts.Medium,
-              marginTop: 4,
-            }}
-            value={timezone}
-            onChangeText={setTimezone}
-            placeholder="e.g. Asia/karachi"
-            autoCapitalize="none"
-          />
+      {initialLoading ? (
+        <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+          <Text style={[styles.title, { color: theme.primaryTextColor }]}>Loading availability...</Text>
         </View>
+      ) : (
+        <ScrollView
+          style={styles.scrollContainer}
+          contentContainerStyle={{paddingBottom: hp(5)}}>
+          <Text style={styles.title}>Set Your Weekly Schedule</Text>
+          
+          {!doctorId && (
+            <View style={{ backgroundColor: Colors.error, padding: 10, borderRadius: 5, marginBottom: 15 }}>
+              <Text style={{ color: Colors.white, textAlign: 'center' }}>
+                ⚠️ Unable to identify logged-in doctor. Please login again.
+              </Text>
+            </View>
+          )}
+          
+          <View style={{ marginBottom: hp(2) }}>
+            <Text style={{ color: theme.primaryTextColor, fontFamily: Fonts.Medium, fontSize: RFPercentage(2) }}>Timezone</Text>
+            <TextInput
+              style={{
+                borderWidth: 1,
+                borderColor: theme.BorderGrayColor,
+                borderRadius: wp(2),
+                padding: wp(3),
+                color: theme.primaryTextColor,
+                fontFamily: Fonts.Medium,
+                marginTop: 4,
+              }}
+              value={timezone}
+              onChangeText={setTimezone}
+              placeholder="e.g. Asia/karachi"
+              autoCapitalize="none"
+            />
+          </View>
 
-        {days.map(day => (
-          <DayCard key={day} day={day} />
-        ))}
+          {days.map(day => (
+            <DayCard key={day} day={day} />
+          ))}
 
-        <View style={styles.buttonContainer}>
-          {error ? (
-            <Text style={{ color: Colors.error, marginBottom: hp(1), fontFamily: Fonts.Medium }}>{error}</Text>
-          ) : null}
-          <TouchableOpacity
-            style={[styles.saveAvailabilityButton, loading && { opacity: 0.6 }]}
-            onPress={handleSave}
-            disabled={loading}
-          >
-            <Text style={styles.saveAvailabilityButtonText}>
-              {loading ? 'Saving...' : 'Save Availability'}
-            </Text>
-          </TouchableOpacity>
-        </View>
-      {picker.visible && (
-        <DateTimePicker
-          value={(() => {
-            // Always use a fixed date and zero out seconds/milliseconds
-            if (picker.value && /^\d{2}:\d{2}$/.test(picker.value)) {
-              const [h, m] = picker.value.split(':');
-              const d = new Date(1970, 0, 1, parseInt(h, 10), parseInt(m, 10), 0, 0);
+          <View style={styles.buttonContainer}>
+            {error ? (
+              <Text style={{ color: Colors.error, marginBottom: hp(1), fontFamily: Fonts.Medium }}>{error}</Text>
+            ) : null}
+            <TouchableOpacity
+              style={[styles.saveAvailabilityButton, (loading || !doctorId) && { opacity: 0.6 }]}
+              onPress={handleSave}
+              disabled={loading || !doctorId}
+            >
+              <Text style={styles.saveAvailabilityButtonText}>
+                {loading ? 'Saving...' : 'Save Availability'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        {picker.visible && (
+          <DateTimePicker
+            value={(() => {
+              // Always use a fixed date and zero out seconds/milliseconds
+              if (picker.value && /^\d{2}:\d{2}$/.test(picker.value)) {
+                const [h, m] = picker.value.split(':');
+                const d = new Date(1970, 0, 1, parseInt(h, 10), parseInt(m, 10), 0, 0);
+                d.setSeconds(0, 0);
+                return d;
+              }
+              const d = new Date(1970, 0, 1, 9, 0, 0, 0);
               d.setSeconds(0, 0);
               return d;
-            }
-            const d = new Date(1970, 0, 1, 9, 0, 0, 0);
-            d.setSeconds(0, 0);
-            return d;
-          })()}
-          mode="time"
-          is24Hour={true}
-          display="spinner"
-          onChange={(event, selectedDate) => {
-            if (event.type === 'dismissed' || !selectedDate) {
+            })()}
+            mode="time"
+            is24Hour={true}
+            display="spinner"
+            onChange={(event, selectedDate) => {
+              if (event.type === 'dismissed' || !selectedDate) {
+                setPicker({ visible: false, day: null, idx: null, field: null });
+                return;
+              }
+              // Always use getHours/getMinutes from a fixed date, ignore any offset
+              const hours = selectedDate.getHours().toString().padStart(2, '0');
+              const minutes = selectedDate.getMinutes().toString().padStart(2, '0');
+              const time = `${hours}:${minutes}`;
+              updateSession(picker.day, picker.idx, picker.field, time);
               setPicker({ visible: false, day: null, idx: null, field: null });
-              return;
-            }
-            // Always use getHours/getMinutes from a fixed date, ignore any offset
-            const hours = selectedDate.getHours().toString().padStart(2, '0');
-            const minutes = selectedDate.getMinutes().toString().padStart(2, '0');
-            const time = `${hours}:${minutes}`;
-            updateSession(picker.day, picker.idx, picker.field, time);
-            setPicker({ visible: false, day: null, idx: null, field: null });
-          }}
-        />
+            }}
+          />
+        )}
+        </ScrollView>
       )}
-      </ScrollView>
     </SafeAreaView>
   );
 };

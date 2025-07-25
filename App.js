@@ -6,7 +6,7 @@ import { AlertProvider } from './src/Providers/AlertContext';
 import DynamicAlert from './src/components/DynamicAlert';
 import Router from './src/navigations/router';
 import { persistor, Store } from './src/redux/Store/Store';
-
+import AuthErrorBoundary from './src/components/AuthErrorBoundary';
 
 import { Colors } from './src/Constants/themeColors';
 import { setDarkMode } from './src/redux/Slices/Theme';
@@ -57,15 +57,20 @@ export default function App() {
   return (
     <Provider store={Store}>
       <PersistGate loading={null} persistor={persistor}>
-        <AlertProvider>
-          <SocketProvider>
-            <VideoCallProvider>
-              <AuthProvider>
-                <MainRoot />
-              </AuthProvider>
-            </VideoCallProvider>
-          </SocketProvider>
-        </AlertProvider>
+        <AuthErrorBoundary onReset={() => {
+          // Force app to reload after auth reset
+          console.log('App restarting after auth reset...');
+        }}>
+          <AlertProvider>
+            <SocketProvider>
+              <VideoCallProvider>
+                <AuthProvider>
+                  <MainRoot />
+                </AuthProvider>
+              </VideoCallProvider>
+            </SocketProvider>
+          </AlertProvider>
+        </AuthErrorBoundary>
       </PersistGate>
     </Provider>
   );

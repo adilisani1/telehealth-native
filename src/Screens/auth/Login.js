@@ -319,21 +319,43 @@ const Login = ({navigation, route}) => {
       const res = await authApi.login({ emailOrPhone: value, password });
       const user = res.data?.data?.user;
       const token = res.data?.data?.token;
+      const refreshToken = res.data?.data?.refreshToken;
+      const expiresIn = res.data?.data?.expiresIn;
       const emailVerified = res.data?.data?.emailVerified;
+      
       // If user exists, credentials are correct
       if (user) {
         // Check for email verification
         const isVerified = (user.emailVerified === true) || (emailVerified === true) || (token ? true : false);
         if (isVerified) {
           // Email is verified, proceed to dashboard
-          const loginPayload = { user, userType: user.role };
-          dispatch(loginUser(loginPayload));
           try {
-            const { storeToken } = await import('../../utils/tokenStorage');
-            if (token) await storeToken(token);
+            const { tokenManager } = await import('../../utils/tokenStorage');
+            if (token) {
+              // Store token FIRST before dispatching login
+              await tokenManager.storeToken({
+                token,
+                refreshToken,
+                expiresAt: Date.now() + (expiresIn * 1000), // Convert seconds to milliseconds
+                tokenType: 'Bearer'
+              });
+              console.log('Token stored successfully before login dispatch');
+            }
+            
+            // Now dispatch login with stored token
+            const loginPayload = { user, userType: user.role, token };
+            dispatch(loginUser(loginPayload));
+            
+            // Skip manual refresh since router will handle verification
+            // const { refreshUserProfile } = await import('../../utils/authRefresh');
+            // await refreshUserProfile(dispatch, token);
+            
           } catch (e) {
             console.error('Failed to store token:', e);
+            showAlert('Authentication setup failed. Please try again.', 'error');
+            return;
           }
+          
           showAlert('Login successful', 'success');
           // Navigation is now handled by the root navigator (Router.js) based on Redux state.
         } else {

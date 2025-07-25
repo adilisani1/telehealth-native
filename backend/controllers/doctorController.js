@@ -8,7 +8,7 @@ export const getDoctorConsultationHistory = async (req, res) => {
     const total = await Appointment.countDocuments({ doctor: doctorId, status: 'completed' });
     const history = await Appointment.find({ doctor: doctorId, status: 'completed' })
       .populate([
-        { path: 'patient', select: 'name email gender dob healthInfo' },
+        { path: 'patient', select: 'name email phone gender dob healthInfo address' },
         { path: 'prescription', select: 'notes diagnosis medicines date pdfUrl' }
       ])
       .sort({ date: -1 })
@@ -39,7 +39,7 @@ export const getCancelledAppointments = async (req, res) => {
       doctor: req.user._id,
       status: 'cancelled'
     })
-      .populate('patient', 'name email gender dob healthInfo')
+      .populate('patient', 'name email phone gender dob healthInfo address')
       .sort({ date: -1 })
       .skip(skip)
       .limit(limit);
@@ -73,22 +73,56 @@ export const getDashboard = async (req, res) => {
 // 2. View all upcoming appointments
 export const getUpcomingAppointments = async (req, res) => {
   try {
+    console.log('🔍 BACKEND: getUpcomingAppointments called by doctor:', req.user._id);
+    
     const now = new Date();
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
     const total = await Appointment.countDocuments({ doctor: req.user._id, status: { $in: ['requested', 'accepted'] }, date: { $gte: now } });
+    
+    console.log('🔍 BACKEND: Querying appointments with patient population...');
     const appointments = await Appointment.find({
       doctor: req.user._id,
       status: { $in: ['requested', 'accepted'] },
       date: { $gte: now }
     })
-      .populate('patient', 'name email gender dob healthInfo')
+      .populate('patient', 'name email phone gender dob healthInfo address')
       .sort({ date: 1 })
       .skip(skip)
       .limit(limit);
+
+    console.log('✅ BACKEND: Found', appointments.length, 'upcoming appointments');
+    
+    // Debug each appointment's patient data
+    appointments.forEach((appointment, index) => {
+      console.log(`\n📋 BACKEND APPOINTMENT ${index + 1}:`);
+      console.log('   - Appointment ID:', appointment._id);
+      console.log('   - Patient populated:', !!appointment.patient);
+      
+      if (appointment.patient) {
+        // Check if patient has gender data
+        if (!appointment.patient.gender) {
+          console.log('⚠️  WARNING: Patient has no gender data in database for appointment', appointment._id);
+        }
+        
+        console.log('   - Patient ID:', appointment.patient._id);
+        console.log('   - Patient Name:', appointment.patient.name);
+        console.log('   - Patient Email:', appointment.patient.email);
+        console.log('   - Patient Phone:', appointment.patient.phone);
+        console.log('   - Patient Gender (CRITICAL):', appointment.patient.gender);
+        console.log('   - Patient DOB:', appointment.patient.dob);
+        console.log('   - Patient Type:', typeof appointment.patient.gender);
+        console.log('   - Patient Object Keys:', Object.keys(appointment.patient.toObject ? appointment.patient.toObject() : appointment.patient));
+      } else {
+        console.log('   - ❌ NO PATIENT DATA POPULATED');
+      }
+    });
+
+    console.log('📤 BACKEND: Sending response to frontend');
     res.json({ success: true, data: { appointments, total, page, pages: Math.ceil(total / limit) }, message: 'Upcoming appointments fetched successfully' });
   } catch (error) {
+    console.error('❌ BACKEND ERROR in getUpcomingAppointments:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 };
@@ -128,11 +162,28 @@ export const getAppointmentHistory = async (req, res) => {
 export const getPatientProfileAndHistory = async (req, res) => {
   try {
     const patientId = req.params.patientId;
+    
     if (!patientId || !mongoose.Types.ObjectId.isValid(patientId)) {
       return res.status(400).json({ success: false, message: 'Invalid patient ID' });
     }
+    
+    console.log('🔍 STEP 2: Querying database for patient...');
     const patient = await User.findOne({ _id: patientId, role: 'patient' }).select('-password');
-    if (!patient) return res.status(404).json({ success: false, message: 'Patient not found' });
+    
+    // Check if any patients have gender data
+    const samplePatients = await User.find({ role: 'patient' }, 'name gender dob').limit(5);
+    console.log('📊 SAMPLE PATIENTS IN DATABASE:');
+    samplePatients.forEach((p, index) => {
+      console.log(`   Patient ${index + 1}: ${p.name} - Gender: ${p.gender} - DOB: ${p.dob}`);
+    });
+    
+    const patientsWithGender = await User.countDocuments({ role: 'patient', gender: { $exists: true, $ne: null } });
+    const totalPatients = await User.countDocuments({ role: 'patient' });
+    console.log(`📊 GENDER DATA STATS: ${patientsWithGender}/${totalPatients} patients have gender data`);
+    
+    if (!patient) {
+      return res.status(404).json({ success: false, message: 'Patient not found' });
+    }
 
     const history = await Appointment.find({
       doctor: req.user._id,
@@ -143,7 +194,9 @@ export const getPatientProfileAndHistory = async (req, res) => {
       ])
       .sort({ date: -1 });
 
-    res.json({ success: true, data: { patient, history }, message: 'Patient profile and history fetched successfully' });
+
+    const responseData = { patient, history };
+    res.json({ success: true, data: responseData, message: 'Patient profile and history fetched successfully' });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -348,6 +401,75 @@ export const postMyEarningNegotiationMessage = async (req, res) => {
 
     await doctor.save();
     res.json({ success: true, data: doctor, message: 'Negotiation message sent to admin' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// Get patient health records for doctor
+export const getPatientHealthRecords = async (req, res) => {
+  try {
+    const patientId = req.params.patientId;
+    if (!patientId || !mongoose.Types.ObjectId.isValid(patientId)) {
+      return res.status(400).json({ success: false, message: 'Invalid patient ID' });
+    }
+
+    // Check if patient exists
+    const patient = await User.findOne({ _id: patientId, role: 'patient' });
+    if (!patient) {
+      return res.status(404).json({ success: false, message: 'Patient not found' });
+    }
+
+    // Get patient's appointment history with this doctor to verify access
+    const appointmentExists = await Appointment.findOne({
+      doctor: req.user._id,
+      patient: patientId
+    });
+
+    if (!appointmentExists) {
+      return res.status(403).json({ 
+        success: false, 
+        message: 'Access denied. No appointment history found with this patient.' 
+      });
+    }
+
+    // For now, return basic health information from patient profile
+    // In future, this can be expanded to include detailed health records
+    const healthRecords = [
+      {
+        id: 1,
+        date: patient.createdAt,
+        type: 'Profile Information',
+        description: patient.healthInfo || 'No health information provided',
+        notes: `Patient registered on ${patient.createdAt.toDateString()}`,
+      }
+    ];
+
+    // Add any additional health info from appointments
+    const appointments = await Appointment.find({
+      doctor: req.user._id,
+      patient: patientId,
+      status: 'completed'
+    }).populate('prescription');
+
+    appointments.forEach((appointment, index) => {
+      if (appointment.prescription) {
+        healthRecords.push({
+          id: healthRecords.length + 1,
+          date: appointment.date,
+          type: 'Consultation Record',
+          description: appointment.prescription.diagnosis || 'Consultation completed',
+          notes: appointment.prescription.notes || '',
+          medicines: appointment.prescription.medicines || []
+        });
+      }
+    });
+
+    res.json({ 
+      success: true, 
+      data: healthRecords, 
+      message: 'Patient health records fetched successfully' 
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

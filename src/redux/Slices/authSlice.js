@@ -5,6 +5,8 @@ const initialState = {
   User: {},
   userType: '',
   isAuthenticated: false,
+  justLoggedIn: false,
+  token: null,
 };
 
 const authSlice = createSlice({
@@ -22,19 +24,22 @@ const authSlice = createSlice({
       state.userType = action.payload;
     },
     loginUser: (state, action) => {
-      const {user, userType} = action.payload;
+      const {user, userType, token} = action.payload;
       state.User = user;
       state.userType = userType;
       state.userId = user._id || user.id;
       state.isAuthenticated = true;
       state.justLoggedIn = true;
+      state.token = token || null;
     },
     logoutUser: state => {
+      // Complete reset to initial state
       state.User = {};
       state.userType = '';
       state.userId = '';
       state.isAuthenticated = false;
       state.justLoggedIn = false;
+      state.token = null;
     },
   },
 });

@@ -34,15 +34,31 @@ const Profile = ({navigation}) => {
   const delete_Ref = useRef();
   const logout = useLogout(); // Use logout with navigation
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     logout_Ref.current.close();
-    logout(navigation); // Pass navigation to logout
+    
+    // Call backend logout API first
+    try {
+      const {getToken} = await import('../../../utils/tokenStorage');
+      const authApi = await import('../../../services/authApi');
+      const token = await getToken();
+      
+      if (token) {
+        await authApi.default.logout(token);
+      }
+    } catch (e) {
+      console.log('Backend logout failed:', e);
+      // Continue with local logout even if backend fails
+    }
+    
+    // Local logout with navigation
+    await logout(navigation);
   };
 
-  const handleDeleteAccount = () => {
+  const handleDeleteAccount = async () => {
     delete_Ref.current.close();
     // Add delete account logic here
-    logout(navigation); // Pass navigation to logout
+    await logout(navigation);
   };
 
   const styles = StyleSheet.create({

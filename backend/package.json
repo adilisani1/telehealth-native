@@ -6,7 +6,10 @@
     "start": "node src/index.js",
     "dev": "nodemon src/index.js",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "admin-frontend": "npx serve admin-frontend"
+    "admin-frontend": "npx serve admin-frontend",
+    "fix-gender": "node scripts/fixGenderIssue.js",
+    "fix-gender-simple": "node scripts/fixMissingGenderData.js",
+    "test-gender-registration": "node scripts/testGenderRegistration.js"
   },
   "keywords": [],
   "author": "",

@@ -54,11 +54,34 @@ export const register = async (req, res) => {
     if (!req.body.consent) {
       return res.status(400).json({ success: false, message: 'Consent is required to register.' });
     }
-    const { name, email, phone, password, role, dob, specialization, qualifications, proposedFee, currency } = req.body;
+    const { name, email, phone, password, role, dob, gender, specialization, qualifications, proposedFee, currency } = req.body;
     // Sanitize input
     const cleanName = name.trim();
     const cleanEmail = email.trim().toLowerCase();
     const cleanPhone = phone.trim();
+    
+    // Normalize gender values
+    let cleanGender = null;
+    if (gender) {
+      const genderStr = gender.trim().toLowerCase();
+      if (genderStr === 'male') {
+        cleanGender = 'male';
+      } else if (genderStr === 'female') {
+        cleanGender = 'female';
+      } else if (genderStr === 'others' || genderStr === 'other' || genderStr === 'preferred not to say') {
+        cleanGender = 'other';
+      }
+    }
+    
+    console.log('🔍 REGISTRATION DEBUG: Received data');
+    console.log('   - Name:', cleanName);
+    console.log('   - Email:', cleanEmail);
+    console.log('   - Phone:', cleanPhone);
+    console.log('   - Role:', role);
+    console.log('   - DOB:', dob);
+    console.log('   - Gender (RAW):', gender);
+    console.log('   - Gender (NORMALIZED):', cleanGender);
+    
     if (!cleanName || !cleanEmail || !cleanPhone || !password || !role) {
       return res.status(400).json({ success: false, message: 'All fields are required' });
     }
@@ -68,6 +91,12 @@ export const register = async (req, res) => {
     if (password.length < 6) {
       return res.status(400).json({ success: false, message: 'Password must be at least 6 characters' });
     }
+    
+    // Validate gender if provided
+    if (cleanGender && !['male', 'female', 'other'].includes(cleanGender)) {
+      return res.status(400).json({ success: false, message: 'Gender must be male, female, or other' });
+    }
+    
     // Enforce required fields based on role
     let dobDate = undefined;
     if (role === 'patient') {
@@ -112,6 +141,7 @@ export const register = async (req, res) => {
       password: hashedPassword,
       role,
       dob: dobDate,
+      gender: cleanGender, // Add gender field
       specialization: specialization || undefined,
       qualifications: qualifications || undefined,
       otp,
@@ -127,6 +157,8 @@ export const register = async (req, res) => {
         agreedFee: undefined
       } : {})
     });
+    
+    console.log('✅ REGISTRATION SUCCESS: User created with gender:', user.gender);
     // Send OTP email
     await sendMail({
       to: cleanEmail,
@@ -175,6 +207,8 @@ export const verifyEmail = async (req, res) => {
 
     // Generate JWT token after verification
     const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '7d' });
+    const refreshToken = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '30d' });
+    
     // Return user object (without password)
     const userObj = {
       id: user._id,
@@ -188,6 +222,8 @@ export const verifyEmail = async (req, res) => {
       success: true,
       message: 'Email verified successfully',
       token,
+      refreshToken,
+      expiresIn: 7 * 24 * 60 * 60, // 7 days in seconds
       user: userObj
     });
   } catch (error) {
@@ -224,10 +260,14 @@ export const login = async (req, res) => {
       return res.status(403).json({ success: false, message: 'Your account is suspended. Please contact support.' });
     }
     const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '7d' });
+    const refreshToken = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '30d' });
+    
     res.json({
       success: true,
       data: {
         token,
+        refreshToken,
+        expiresIn: 7 * 24 * 60 * 60, // 7 days in seconds
         user: {
           id: user._id,
           name: user.name,
@@ -340,5 +380,74 @@ export const deleteAccount = async (req, res) => {
     res.json({ success: true, message: 'Account deleted successfully' });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// Refresh JWT token
+export const refreshToken = async (req, res) => {
+  try {
+    const { refreshToken } = req.body;
+    
+    if (!refreshToken) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Refresh token is required' 
+      });
+    }
+
+    // Verify the refresh token
+    let decoded;
+    try {
+      decoded = jwt.verify(refreshToken, process.env.JWT_SECRET);
+    } catch (error) {
+      return res.status(401).json({ 
+        success: false, 
+        message: 'Invalid or expired refresh token' 
+      });
+    }
+
+    // Find the user
+    const user = await User.findById(decoded.id);
+    if (!user) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'User not found' 
+      });
+    }
+
+    // Generate new tokens
+    const newAccessToken = jwt.sign(
+      { id: user._id, role: user.role }, 
+      process.env.JWT_SECRET, 
+      { expiresIn: '7d' }
+    );
+    
+    const newRefreshToken = jwt.sign(
+      { id: user._id, role: user.role }, 
+      process.env.JWT_SECRET, 
+      { expiresIn: '30d' }
+    );
+
+    res.status(200).json({
+      success: true,
+      message: 'Token refreshed successfully',
+      token: newAccessToken,
+      refreshToken: newRefreshToken,
+      expiresIn: 7 * 24 * 60 * 60, // 7 days in seconds
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        isVerified: user.isVerified
+      }
+    });
+
+  } catch (error) {
+    console.error('Refresh token error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Internal server error' 
+    });
   }
 };

@@ -131,14 +131,28 @@ export const bookAppointment = async (req, res) => {
 // 2. Doctor accepts appointment
 export const acceptAppointment = async (req, res) => {
   try {
+    console.log('🔍 Accept appointment request:', {
+      params: req.params,
+      body: req.body,
+      user: req.user._id,
+      userRole: req.user.role
+    });
+
     if (!req.params.id || !mongoose.Types.ObjectId.isValid(req.params.id)) {
       return res.status(400).json({ success: false, message: 'Invalid appointment ID' });
     }
     await markMissedAppointments();
     const appointment = await Appointment.findOne({ _id: req.params.id, doctor: req.user._id, status: 'requested' });
-    if (!appointment) return res.status(404).json({ success: false, message: 'Appointment not found or not in requested state' });
+    if (!appointment) {
+      console.log('❌ Appointment not found or not in requested state:', {
+        appointmentId: req.params.id,
+        doctorId: req.user._id,
+        foundAppointment: await Appointment.findOne({ _id: req.params.id })
+      });
+      return res.status(404).json({ success: false, message: 'Appointment not found or not in requested state' });
+    }
     appointment.status = 'accepted';
-    await appointment.save();
+    await appointment.save({ validateBeforeSave: false });
     await AuditLog.create({ user: req.user._id, action: 'accept_appointment', target: 'Appointment', targetId: appointment._id });
     // Send notification to patient
     await Notification.create({
@@ -152,8 +166,10 @@ export const acceptAppointment = async (req, res) => {
     const doctor = await User.findById(appointment.doctor);
     await sendAppointmentConfirmation(patient, appointment, doctor, patient);
     await scheduleAppointmentReminder(appointment);
+    console.log('✅ Appointment accepted successfully:', appointment._id);
     res.json({ success: true, data: appointment, message: 'Appointment accepted' });
   } catch (error) {
+    console.error('❌ Accept appointment error:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 };
@@ -161,14 +177,28 @@ export const acceptAppointment = async (req, res) => {
 // 3. Complete appointment (doctor)
 export const completeAppointment = async (req, res) => {
   try {
+    console.log('🔍 Complete appointment request:', {
+      params: req.params,
+      body: req.body,
+      user: req.user._id,
+      userRole: req.user.role
+    });
+
     if (!req.params.id || !mongoose.Types.ObjectId.isValid(req.params.id)) {
       return res.status(400).json({ success: false, message: 'Invalid appointment ID' });
     }
     await markMissedAppointments();
     const appointment = await Appointment.findOne({ _id: req.params.id, doctor: req.user._id, status: 'accepted' });
-    if (!appointment) return res.status(404).json({ success: false, message: 'Appointment not found or not in accepted state' });
+    if (!appointment) {
+      console.log('❌ Appointment not found or not in accepted state:', {
+        appointmentId: req.params.id,
+        doctorId: req.user._id,
+        foundAppointment: await Appointment.findOne({ _id: req.params.id })
+      });
+      return res.status(404).json({ success: false, message: 'Appointment not found or not in accepted state' });
+    }
     appointment.status = 'completed';
-    await appointment.save();
+    await appointment.save({ validateBeforeSave: false });
     await AuditLog.create({ user: req.user._id, action: 'complete_appointment', target: 'Appointment', targetId: appointment._id });
     // Send notification to patient and doctor
     await Notification.create({
@@ -181,8 +211,10 @@ export const completeAppointment = async (req, res) => {
       type: 'alert',
       message: `Appointment with patient has been marked as completed.`
     });
+    console.log('✅ Appointment completed successfully:', appointment._id);
     res.json({ success: true, data: appointment, message: 'Appointment marked as completed' });
   } catch (error) {
+    console.error('❌ Complete appointment error:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 };
@@ -190,26 +222,46 @@ export const completeAppointment = async (req, res) => {
 // 4. Cancel appointment (patient or doctor)
 export const cancelAppointment = async (req, res) => {
   try {
+    console.log('🔍 Cancel appointment request:', {
+      params: req.params,
+      body: req.body,
+      user: req.user._id,
+      userRole: req.user.role
+    });
+
     if (!req.params.id || !mongoose.Types.ObjectId.isValid(req.params.id)) {
       return res.status(400).json({ success: false, message: 'Invalid appointment ID' });
     }
     await markMissedAppointments();
     const appointment = await Appointment.findOne({ _id: req.params.id });
-    if (!appointment) return res.status(404).json({ success: false, message: 'Appointment not found' });
+    if (!appointment) {
+      console.log('❌ Appointment not found:', req.params.id);
+      return res.status(404).json({ success: false, message: 'Appointment not found' });
+    }
     if (
       (req.user.role === 'patient' && String(appointment.patient) !== String(req.user._id)) &&
       (req.user.role === 'doctor' && String(appointment.doctor) !== String(req.user._id))
     ) {
+      console.log('❌ Not authorized to cancel appointment:', {
+        userRole: req.user.role,
+        userId: req.user._id,
+        appointmentPatient: appointment.patient,
+        appointmentDoctor: appointment.doctor
+      });
       return res.status(403).json({ success: false, message: 'Not authorized to cancel this appointment' });
     }
     if (['completed', 'cancelled', 'missed'].includes(appointment.status)) {
+      console.log('❌ Cannot cancel appointment with status:', appointment.status);
       return res.status(400).json({ success: false, message: 'Cannot cancel a completed, missed, or already cancelled appointment' });
     }
     appointment.status = 'cancelled';
-    await appointment.save();
+    appointment.cancelReason = req.body.reason || 'No reason provided';
+    await appointment.save({ validateBeforeSave: false });
     await AuditLog.create({ user: req.user._id, action: 'cancel_appointment', target: 'Appointment', targetId: appointment._id });
+    console.log('✅ Appointment cancelled successfully:', appointment._id);
     res.json({ success: true, data: appointment, message: 'Appointment cancelled' });
   } catch (error) {
+    console.error('❌ Cancel appointment error:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 };

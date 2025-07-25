@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -26,6 +26,8 @@ import CustomButton from '../../components/Buttons/customButton';
 import { useAlert } from '../../Providers/AlertContext';
 import { SCREENS } from '../../Constants/Screens';
 import appointmentApi from '../../services/appointmentApi';
+import HealthRecordsUpload from '../../components/HealthRecords/HealthRecordsUpload';
+import healthRecordsApi from '../../services/healthRecordsApi';
 
 const NewAppointment = ({navigation, route}) => {
   const { title, doctor } = route.params;
@@ -58,16 +60,18 @@ const NewAppointment = ({navigation, route}) => {
   }, [doctorAvailability]);
 
   // Helper: Get available days from doctor's availability (only days with slots)
-  const availableDays = doctorAvailability
-    .filter(a => a.slots && a.slots.length > 0)
-    .map(a => a.day);
+  const availableDays = useMemo(() => {
+    return doctorAvailability
+      .filter(a => a.slots && a.slots.length > 0)
+      .map(a => a.day);
+  }, [doctorAvailability]);
 
   // Helper: Get available slots for selected day
-  const getAvailableSlotsForDay = (day) => {
+  const getAvailableSlotsForDay = useCallback((day) => {
     const dayObj = doctorAvailability.find(a => a.day === day);
     // Only return slots if the day exists and has actual slots
     return dayObj && dayObj.slots && dayObj.slots.length > 0 ? dayObj.slots : [];
-  };
+  }, [doctorAvailability]);
 
   // State for selected date and day
   const [selectedDate, setSelectedDate] = useState(moment().toDate());
@@ -133,11 +137,18 @@ const NewAppointment = ({navigation, route}) => {
      '01 - 05', '06 - 10','11 - 15', '16 - 20', '21 - 30', '31 -35', '36 - 40', '41 - 55', '45 - 50', '51- 55', '56 - 60', '61 - 65', '66 - 70', '71 - 75', '76 - 80', '81 - 85', '86 - 90', '91 - 95', '96 - 100',
   ];
   const [problem, setProblem] = useState('');
+  const [healthRecordsData, setHealthRecordsData] = useState(null); // Store health records data
   const [slots, setSlots] = useState([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [booking, setBooking] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+
+  // Stable callback for health records data changes
+  const handleHealthRecordsChange = useCallback((data) => {
+    console.log('🔍 DEBUG: NewAppointment received health records data:', data);
+    setHealthRecordsData(data);
+  }, []);
 
 
 
@@ -373,16 +384,84 @@ const renderDateItem = (timestamp) => {
     console.log(`Available Slots:`, slots);
   }, [selectedDate, doctorAvailability]);
 
-  // Use available slots for selected day
-  const availableSlots = getAvailableSlotsForDay(selectedDay);
+  // Use available slots for selected day (memoized to prevent render loops)
+  const availableSlots = useMemo(() => {
+    return getAvailableSlotsForDay(selectedDay);
+  }, [selectedDay, getAvailableSlotsForDay]);
   
-  // Debug: Log available slots for rendering
-  console.log(`=== RENDER ===`);
-  console.log(`Selected Day: ${selectedDay}`);
-  console.log(`Available Days: [${availableDays.join(', ')}]`);
-  console.log(`Available Slots Length: ${availableSlots.length}`);
-  console.log(`Available Slots:`, availableSlots);
-  console.log(`=============`);
+  // Debug: Log available slots for rendering (moved to useEffect to prevent render loop)
+  useEffect(() => {
+    console.log(`=== RENDER DEBUG ===`);
+    console.log(`Selected Day: ${selectedDay}`);
+    console.log(`Available Days: [${availableDays.join(', ')}]`);
+    console.log(`Available Slots Length: ${availableSlots.length}`);
+    console.log(`Available Slots:`, availableSlots);
+    console.log(`===================`);
+  }, [selectedDay, availableDays, availableSlots]);
+
+  // Helper: Upload health records after appointment booking
+  const uploadHealthRecords = async () => {
+    console.log('🔍 DEBUG: uploadHealthRecords called');
+    console.log('🔍 DEBUG: healthRecordsData:', JSON.stringify(healthRecordsData, null, 2));
+    
+    if (!healthRecordsData || !healthRecordsData.hasData) {
+      console.log('❌ DEBUG: No health records to upload - healthRecordsData:', healthRecordsData);
+      return;
+    }
+
+    try {
+      console.log('📤 Starting health records upload...');
+      console.log('📤 Upload data:', {
+        type: healthRecordsData.type,
+        description: healthRecordsData.description,
+        hasFiles: healthRecordsData.files?.length || 0,
+        hasNoteData: !!healthRecordsData.noteData
+      });
+      
+      const uploadPromises = [];
+      
+      if (healthRecordsData.type === 'note') {
+        // Upload note
+        console.log('📝 Uploading note...');
+        uploadPromises.push(
+          healthRecordsApi.uploadHealthRecord({
+            type: 'note',
+            description: healthRecordsData.description,
+            noteData: healthRecordsData.noteData,
+          })
+        );
+      } else {
+        // Upload files
+        console.log('📁 Uploading files...');
+        healthRecordsData.files.forEach((file, index) => {
+          console.log(`📁 File ${index + 1}:`, {
+            name: file.name,
+            size: file.size,
+            type: file.type
+          });
+          uploadPromises.push(
+            healthRecordsApi.uploadHealthRecord({
+              type: healthRecordsData.type,
+              description: healthRecordsData.description,
+              file,
+            })
+          );
+        });
+      }
+
+      console.log(`📤 Making ${uploadPromises.length} API calls...`);
+      const results = await Promise.all(uploadPromises);
+      console.log('✅ Health records uploaded successfully:', results);
+      showAlert(`Successfully uploaded ${results.length} health record${results.length > 1 ? 's' : ''}`, 'success');
+      
+      return results;
+    } catch (error) {
+      console.error('❌ Health records upload error:', error);
+      console.error('❌ Error details:', error.response?.data || error.message);
+      showAlert('Health records could not be uploaded, but your appointment has been scheduled successfully.', 'warning');
+      return null;
+    }
+  };
 
   // Helper: Validate inputs
   const validateInputs = () => {
@@ -478,6 +557,13 @@ const renderDateItem = (timestamp) => {
         </View> */}
         <Text style={styles.label} >Write your problem</Text>
         <TxtInput placeholder={'Describe your problem'} style={{ flex: 1, marginBottom: hp(4), }} value={problem} onChangeText={setProblem} containerStyle={{ paddingHorizontal: wp(3), }} multiline={true} numberOfLines={5} />
+        
+        {/* Health Records Upload Component */}
+        <HealthRecordsUpload 
+          onHealthRecordsChange={handleHealthRecordsChange}
+          containerStyle={{ marginBottom: hp(2) }}
+        />
+        
         <CustomButton containerStyle={styles.btn} text={title} textStyle={[styles.btnText]} onPress={() => reff.current.open()} />
 
       </View>
@@ -491,7 +577,11 @@ const renderDateItem = (timestamp) => {
         cancelText={'Cancel'}
         okText={'Yes, Confirm'}
         height={hp(25)}
-        description={'Are you sure you want to schedule an appointment?'}
+        description={
+          healthRecordsData?.hasData 
+            ? 'Are you sure you want to schedule an appointment? Your health records will also be uploaded.'
+            : 'Are you sure you want to schedule an appointment?'
+        }
         onCancel={() => reff.current.close()}
         onOk={async () => {
           if (booking) return; // Prevent double submit
@@ -505,6 +595,9 @@ const renderDateItem = (timestamp) => {
           }
           reff.current.close();
           setBooking(true);
+          
+          console.log('🔍 DEBUG: About to book appointment. Current healthRecordsData:', JSON.stringify(healthRecordsData, null, 2));
+          
           try {
             const formattedDate = moment(selectedDate).format('YYYY-MM-DD');
             const payload = {
@@ -520,6 +613,10 @@ const renderDateItem = (timestamp) => {
             if (res.data && res.data.success) {
               setSuccessMsg('Appointment Scheduled Successfully');
               showAlert('Appointment Scheduled Successfully', 'success');
+              
+              // Upload health records after successful appointment booking
+              await uploadHealthRecords();
+              
               setTimeout(() => {
                 title === 'Reschedule Appointment' ? navigation.navigate(SCREENS.MYAPPOINTMENT) : navigation.navigate(SCREENS.REVIEWSUMMARY, { appointment: res.data.data, doctor: doctor });
               }, 1500);

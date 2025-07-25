@@ -36,7 +36,15 @@ router.put('/profile',
   [
     body('specialization').if((value, { req }) => req.user.role === 'doctor').notEmpty().withMessage('Specialization is required for doctors'),
     body('qualifications').if((value, { req }) => req.user.role === 'doctor').notEmpty().withMessage('Qualifications are required for doctors'),
-    body('dob').if((value, { req }) => req.user.role === 'patient').notEmpty().withMessage('Date of birth (dob) is required for patients')
+    body('dob').if((value, { req }) => req.user.role === 'patient').notEmpty().withMessage('Date of birth (dob) is required for patients'),
+    body('gender').optional().custom((value) => {
+      if (!value) return true;
+      const normalizedValue = value.toString().trim().toLowerCase();
+      if (['male', 'female', 'other', 'others', 'preferred not to say'].includes(normalizedValue)) {
+        return true;
+      }
+      throw new Error('Gender must be male, female, other, others, or preferred not to say');
+    })
   ],
   updateProfile
 );

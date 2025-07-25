@@ -11,7 +11,7 @@ import CameraBottomSheet from '../../components/BottomSheets/CameraBottomSheet'
 import { useSelector } from 'react-redux'
 import { Colors } from '../../Constants/themeColors'
 import { Fonts } from '../../Constants/Fonts'
-import { AirbnbRating } from 'react-native-ratings'
+import CustomRating from '../../components/CustomRating/CustomRating'
 import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-native-responsive-screen';
 import TxtInput from '../../components/TextInput/Txtinput'
 import CustomButton from '../../components/Buttons/customButton'
@@ -204,13 +204,13 @@ const DetailsScreen = ({ navigation, route }) => {
       <CRBSheetComponent refRBSheet={reviewSheet_Ref} content={<View style={{ flex: 1, }} >
         <Text style={styles.sheatHeading} >Add Review</Text>
         <View style={{ marginTop: hp(3) }} >
-          <AirbnbRating
+          <CustomRating
             count={5}
-            showRating={false}
             defaultRating={4}
             size={RFPercentage(4)}
-            // starImage={<Images.food1 />}
-            // ratingContainerStyle={{marginBottom: 20, width: 50}}
+            readonly={false}
+            starColor={isDarkMode ? Colors.darkTheme.primaryColor : Colors.lightTheme.primaryColor}
+            emptyStarColor={isDarkMode ? Colors.darkTheme.BorderGrayColor : Colors.lightTheme.BorderGrayColor}
             onFinishRating={value => {
               // setRating(value);
             }}

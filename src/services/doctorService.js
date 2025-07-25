@@ -10,7 +10,18 @@ const doctorApi = axios.create({
 
 export const getDoctorAvailability = async (token) => {
   try {
-    const response = await doctorApi.get('/api/doctor/profile', {
+    const response = await doctorApi.get('/api/user/profile', {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    return response.data.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const getDoctorProfile = async (token) => {
+  try {
+    const response = await doctorApi.get('/api/user/profile', {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     });
     return response.data.data;

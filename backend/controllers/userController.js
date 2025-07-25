@@ -28,6 +28,21 @@ export const getProfile = async (req, res) => {
 export const updateProfile = async (req, res) => {
   try {
     const updates = req.body;
+    
+    // Normalize gender if provided
+    if (updates.gender) {
+      const genderStr = updates.gender.toString().trim().toLowerCase();
+      if (genderStr === 'male') {
+        updates.gender = 'male';
+      } else if (genderStr === 'female') {
+        updates.gender = 'female';
+      } else if (genderStr === 'others' || genderStr === 'other' || genderStr === 'preferred not to say') {
+        updates.gender = 'other';
+      }
+      
+      console.log('🔍 PROFILE UPDATE: Gender normalized from', req.body.gender, 'to', updates.gender);
+    }
+    
     // Handle avatar upload
     if (req.file) {
       // Validate file type and size

@@ -97,11 +97,27 @@ const OtpScreen = () => {
         showAlert('Email verified successfully!', 'success');
         // Use token and user from verifyEmail response if present, else fallback to userData
         let token = data.token || (userData && userData.token);
+        let refreshToken = data.refreshToken;
+        let expiresIn = data.expiresIn;
         let userObj = data.user || (userData && userData.user);
         let userRole = userType;
 
         if (token) {
-          await storeToken(token);
+          // Store token with new secure manager
+          try {
+            const { tokenManager } = await import('../../utils/tokenStorage');
+            await tokenManager.storeToken({
+              token,
+              refreshToken,
+              expiresAt: Date.now() + (expiresIn * 1000), // Convert seconds to milliseconds
+              tokenType: 'Bearer'
+            });
+          } catch (e) {
+            console.error('Failed to store token:', e);
+            // Fallback to legacy method
+            await storeToken(token);
+          }
+          
           // If userObj is missing, fetch profile
           if (!userObj) {
             try {
@@ -124,7 +140,16 @@ const OtpScreen = () => {
           }
           console.log('Dispatching loginUser with:', { userObj, userRole });
           if (userObj) {
-            dispatch(loginUser({ user: { ...userObj, _id: userObj._id || userObj.id }, userType: userRole }));
+            dispatch(loginUser({ user: { ...userObj, _id: userObj._id || userObj.id }, userType: userRole, token }));
+            
+            // Skip manual refresh since router will handle verification
+            // try {
+            //   const { refreshUserProfile } = await import('../../utils/authRefresh');
+            //   await refreshUserProfile(dispatch, token);
+            // } catch (refreshError) {
+            //   console.log('Profile refresh after OTP failed:', refreshError);
+            // }
+            
             // Reset navigation to home/tab/dashboard based on user role
             if (userRole === 'doctor') {
               console.log('Navigating to DOCTOR_DASHBOARD');

@@ -9,7 +9,7 @@ import { useSelector } from 'react-redux';
 import { Fonts } from '../../Constants/Fonts';
 import StackHeader from '../../components/Header/StackHeader';
 import CustomButton from '../../components/Buttons/customButton';
-import { AirbnbRating } from 'react-native-ratings';
+import CustomRating from '../../components/CustomRating/CustomRating';
 import { SCREENS } from '../../Constants/Screens';
 import { Images } from '../../assets/Images/images';
 
@@ -108,13 +108,13 @@ const Favourites = ({navigation}) => {
           <Text style={styles.specialty}>{item.specialty}</Text>
           {/* Rating and Reviews */}
           <View style={styles.ratingContainer}>
-            <AirbnbRating
+            <CustomRating
               count={5}
-              showRating={false}
               defaultRating={5}
               size={RFPercentage(2)}
-              // starImage={<Images.food1 />}
-              // ratingContainerStyle={{marginBottom: 20, width: 50}}
+              readonly={true}
+              starColor={isDarkMode ? Colors.darkTheme.primaryColor : Colors.lightTheme.primaryColor}
+              emptyStarColor={isDarkMode ? Colors.darkTheme.BorderGrayColor : Colors.lightTheme.BorderGrayColor}
               onFinishRating={value => {
                 // setRating(value);
               }}

@@ -37,6 +37,8 @@ export const Colors = {
     lightTheme,
     error: '#E52030',
     success: '#129957',
+    warning: '#FF9500',
+    info: '#007AFF',
     transparent: 'transparent',
     white: '#ffffff',
 };

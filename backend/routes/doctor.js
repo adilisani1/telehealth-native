@@ -7,6 +7,7 @@ import {
   getAppointmentHistory,
   getDoctorConsultationHistory,
   getPatientProfileAndHistory,
+  getPatientHealthRecords,
   setAvailability,
   joinVideoCall,
   addConsultationNotes,
@@ -26,6 +27,7 @@ router.get('/dashboard', protect, authorizeRoles('doctor'), getDashboard);
 router.get('/appointments/upcoming', protect, authorizeRoles('doctor'), getUpcomingAppointments);
 router.get('/appointments/history', protect, authorizeRoles('doctor'), getDoctorConsultationHistory);
 router.get('/patient/:patientId', protect, authorizeRoles('doctor'), getPatientProfileAndHistory);
+router.get('/patient/:patientId/health-records', protect, authorizeRoles('doctor'), getPatientHealthRecords);
 router.put('/availability',
   protect,
   authorizeRoles('doctor'),

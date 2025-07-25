@@ -3,7 +3,7 @@ import { View, Text, Image, StyleSheet, TouchableOpacity } from 'react-native';
 import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-native-responsive-screen';
 import { RFPercentage } from 'react-native-responsive-fontsize';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import { AirbnbRating } from 'react-native-ratings';
+import CustomRating from '../../components/CustomRating/CustomRating';
 import StackHeader from '../../components/Header/StackHeader';
 import { useSelector } from 'react-redux';
 import { Colors } from '../../Constants/themeColors';
@@ -222,11 +222,13 @@ const MyAppointment = () => {
                                 <Text style={styles.locationText}>{upcomingAppointment.doctor?.location || 'Location'}</Text>
                             </View>
                             <View style={styles.ratingContainer}>
-                                <AirbnbRating
+                                <CustomRating
                                     count={5}
-                                    showRating={false}
                                     defaultRating={5}
                                     size={RFPercentage(2)}
+                                    readonly={true}
+                                    starColor={isDarkMode ? Colors.darkTheme.primaryColor : Colors.lightTheme.primaryColor}
+                                    emptyStarColor={isDarkMode ? Colors.darkTheme.BorderGrayColor : Colors.lightTheme.BorderGrayColor}
                                     onFinishRating={value => {}}
                                 />
                                 <Text style={styles.reviewText}>52 Reviews</Text>

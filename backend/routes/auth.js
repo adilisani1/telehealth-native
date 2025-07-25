@@ -1,6 +1,6 @@
 
 import express from 'express';
-import { register, login, verifyEmail, requestPasswordReset, resetPassword, resendOtp } from '../controllers/authController.js';
+import { register, login, verifyEmail, requestPasswordReset, resetPassword, resendOtp, refreshToken } from '../controllers/authController.js';
 import rateLimit from 'express-rate-limit';
 import { body } from 'express-validator';
 
@@ -22,7 +22,15 @@ router.post('/register',
     body('email').isEmail().withMessage('Valid email is required'),
     body('phone').trim().notEmpty().withMessage('Phone is required'),
     body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
-    body('role').isIn(['doctor', 'patient', 'admin']).withMessage('Role must be doctor, patient, or admin')
+    body('role').isIn(['doctor', 'patient', 'admin']).withMessage('Role must be doctor, patient, or admin'),
+    body('gender').optional().custom((value) => {
+      if (!value) return true;
+      const normalizedValue = value.toString().trim().toLowerCase();
+      if (['male', 'female', 'other', 'others', 'preferred not to say'].includes(normalizedValue)) {
+        return true;
+      }
+      throw new Error('Gender must be male, female, other, others, or preferred not to say');
+    })
   ],
   register
 );
@@ -40,5 +48,14 @@ router.post('/verify-email', verifyEmail);
 
 router.post('/request-password-reset', requestPasswordReset);
 router.post('/reset-password', resetPassword);
+
+// Refresh token endpoint
+router.post('/refresh-token', 
+  authLimiter,
+  [
+    body('refreshToken').notEmpty().withMessage('Refresh token is required')
+  ],
+  refreshToken
+);
 
 export default router; 
