@@ -7,6 +7,7 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import AuthSlice from '../Slices/authSlice';
 import ThemeSlice from '../Slices/Theme';
+import NotificationsSlice from '../Slices/notificationsSlice';
 
 
 const persistConfig = {
@@ -17,7 +18,8 @@ const persistConfig = {
 
 const rootReducer = combineReducers({
       auth: AuthSlice,
-      theme: ThemeSlice
+      theme: ThemeSlice,
+      notifications: NotificationsSlice
 })
 
 const persistedReducer = persistReducer(persistConfig, rootReducer);

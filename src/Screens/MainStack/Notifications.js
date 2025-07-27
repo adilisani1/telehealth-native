@@ -12,12 +12,14 @@ import { RFPercentage } from 'react-native-responsive-fontsize';
 import StackHeader from '../../components/Header/StackHeader';
 import { Fonts } from '../../Constants/Fonts';
 import { Colors } from '../../Constants/themeColors';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 import CustomButton from '../../components/Buttons/customButton';
 import { useEffect, useState } from 'react';
 import patientApi from '../../services/patientApi';
 import { useAlert } from '../../Providers/AlertContext';
 import doctorApi from '../../services/doctorApi';
+import { fetchNotifications, markNotificationAsRead, markAllNotificationsAsRead } from '../../redux/Slices/notificationsSlice';
+import { useFocusEffect } from '@react-navigation/native';
 
 
 const typeIcons = {
@@ -29,11 +31,11 @@ const typeIcons = {
 };
 
 const Notifications = () => {
+    const dispatch = useDispatch();
     const { isDarkMode } = useSelector(store => store.theme);
     const { User, userType } = useSelector(store => store.auth);
+    const { notifications, loading, error } = useSelector(store => store.notifications);
     const { showAlert } = useAlert();
-    const [notifications, setNotifications] = useState([]);
-    const [loading, setLoading] = useState(true);
 
     // Helper to map backend notification to frontend format
     const mapNotification = (n) => ({
@@ -46,39 +48,26 @@ const Notifications = () => {
         read: n.read,
     });
 
-    useEffect(() => {
-        const fetchNotifications = async () => {
-            setLoading(true);
-            try {
-                let res;
-                if (userType === 'doctor') {
-                    res = await doctorApi.getDoctorNotifications();
-                } else {
-                    res = await patientApi.getNotifications();
-                }
-                // Backend returns { success, data: [notifications], message }
-                const notifs = (res.data.data || []).map(mapNotification);
-                setNotifications(notifs);
-            } catch (err) {
-                showAlert(err.response?.data?.message || 'Failed to load notifications', 'error');
-            } finally {
-                setLoading(false);
+    // Transform Redux notifications to component format
+    const transformedNotifications = notifications.map(mapNotification);
+
+    // Mark all notifications as read when screen opens
+    useFocusEffect(
+        React.useCallback(() => {
+            if (userType && notifications.some(n => !n.read)) {
+                dispatch(markAllNotificationsAsRead(userType));
             }
-        };
-        fetchNotifications();
-    }, [userType]);
+        }, [dispatch, userType, notifications])
+    );
+
+    useEffect(() => {
+        if (userType) {
+            dispatch(fetchNotifications(userType));
+        }
+    }, [dispatch, userType]);
 
     const handleMarkAsRead = async (notificationId) => {
-        try {
-            if (userType === 'doctor') {
-                await doctorApi.markNotificationAsRead(notificationId);
-            } else {
-                await patientApi.markNotificationAsRead(notificationId);
-            }
-            setNotifications(prev => prev.map(n => n.id === notificationId ? { ...n, read: true } : n));
-        } catch (err) {
-            showAlert(err.response?.data?.message || 'Failed to mark as read', 'error');
-        }
+        dispatch(markNotificationAsRead({ notificationId, userType }));
     };
 
     const styles = StyleSheet.create({
@@ -143,7 +132,7 @@ const Notifications = () => {
     });
 
     // Group notifications by date
-    const groupedNotifications = notifications.reduce((groups, item) => {
+    const groupedNotifications = transformedNotifications.reduce((groups, item) => {
         const { date } = item;
         if (!groups[date]) groups[date] = [];
         groups[date].push(item);
@@ -184,14 +173,14 @@ const Notifications = () => {
         </View>
     );
 
-    const unreadCount = notifications.filter(n => !n.read).length;
+    const unreadCount = transformedNotifications.filter(n => !n.read).length;
 
     return (
         <View style={styles.container}>
             <StackHeader title={'Notifications'} rightIconContainer={{backgroundColor: isDarkMode? `${Colors.darkTheme.primaryColor}40`: `${Colors.lightTheme.primaryColor}40`, paddingHorizontal: wp(2),paddingVertical: wp(1), borderRadius: wp(2)}} rightIcon={<Text style={{color: isDarkMode? Colors.darkTheme.primaryTextColor: Colors.lightTheme.primaryTextColor}} >{unreadCount} unread</Text>}  />
             {loading ? (
                 <View style={{flex:1, justifyContent:'center', alignItems:'center'}}><Text>Loading notifications...</Text></View>
-            ) : notifications.length === 0 ? (
+            ) : transformedNotifications.length === 0 ? (
                 <View style={{flex:1, justifyContent:'center', alignItems:'center'}}><Text>No notifications found</Text></View>
             ) : (
                 <SectionList

@@ -8,6 +8,12 @@ const api = axios.create({
   timeout: 10000,
 });
 
+// Helper to get auth headers
+const authHeaders = async () => {
+  const token = await getToken();
+  return { Authorization: `Bearer ${token}` };
+};
+
 // Add request interceptor to handle dynamic token
 api.interceptors.request.use(
   async (config) => {
@@ -65,19 +71,57 @@ export const getProfile = async (token = null) => {
   });
 };
 
-export const updateProfile = async (data, token = null) => {
-  return api.put('/api/user/profile', data, {
-    headers: { 
-      Authorization: token ? `Bearer ${token}` : 'Bearer TOKEN_PLACEHOLDER' 
-    },
-  });
+export const updateProfile = async (data) => {
+  try {
+    console.log('🔐 UPDATE PROFILE: Starting request');
+    console.log('🔐 UPDATE PROFILE: Data type', data instanceof FormData ? 'FormData' : typeof data);
+    console.log('� UPDATE PROFILE: Base URL', BASE_URL);
+    
+    // For FormData, we need to be very explicit about headers
+    if (data instanceof FormData) {
+      console.log('📤 SENDING FORMDATA REQUEST');
+      
+      // Log FormData contents for debugging
+      if (data._parts) {
+        console.log('📋 FormData contents:');
+        data._parts.forEach(([key, value]) => {
+          console.log(`  - ${key}:`, typeof value === 'object' && value.uri ? `File: ${value.uri}` : value);
+        });
+      }
+      
+      return await api.put('/api/user/profile', data, {
+        headers: { 
+          Authorization: 'Bearer TOKEN_PLACEHOLDER', // Will be replaced by interceptor
+        },
+        timeout: 20000, // Increased timeout
+        transformRequest: [function(data) {
+          return data; // Don't transform FormData
+        }],
+      });
+    } else {
+      console.log('📤 SENDING JSON REQUEST');
+      
+      return await api.put('/api/user/profile', data, {
+        headers: {
+          Authorization: 'Bearer TOKEN_PLACEHOLDER', // Will be replaced by interceptor
+          'Content-Type': 'application/json',
+        },
+        timeout: 10000,
+      });
+    }
+  } catch (error) {
+    console.error('🚨 UPDATE PROFILE API ERROR:', error.message);
+    console.error('🚨 ERROR CODE:', error.code);
+    console.error('🚨 ERROR RESPONSE:', error.response?.data || 'No response data');
+    console.error('🚨 ERROR STATUS:', error.response?.status || 'No status');
+    console.error('🚨 REQUEST CONFIG:', error.config || 'No config');
+    throw error;
+  }
 };
 
-export const changePassword = async (data, token = null) => {
+export const changePassword = async (data) => {
   return api.put('/api/user/change-password', data, {
-    headers: { 
-      Authorization: token ? `Bearer ${token}` : 'Bearer TOKEN_PLACEHOLDER' 
-    },
+    headers: await authHeaders(),
   });
 };
 

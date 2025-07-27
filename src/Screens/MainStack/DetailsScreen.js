@@ -32,14 +32,29 @@ const DetailsScreen = ({ navigation, route }) => {
 
   React.useEffect(() => {
     if (who === 'doctor' && doctorId) {
+      console.log('Fetching doctor profile for ID:', doctorId);
       setLoading(true);
       setError('');
       appointmentApi.getDoctorPublicProfile(doctorId)
-        .then(res => setDoctor(res.data.data))
-        .catch(err => setError(err.response?.data?.message || 'Failed to load doctor details.'))
-        .finally(() => setLoading(false));
-        console.log(doctor);
-        
+        .then(res => {
+          console.log('Doctor data received:', res.data);
+          setDoctor(res.data.data);
+        })
+        .catch(err => {
+          console.error('Error fetching doctor:', err);
+          setError(err.response?.data?.message || 'Failed to load doctor details.');
+        })
+        .finally(() => {
+          console.log('Loading finished');
+          setLoading(false);
+        });
+    } else if (who === 'doctor' && !doctorId) {
+      // Handle case when no doctor ID is provided
+      setError('No doctor ID provided');
+      setLoading(false);
+    } else {
+      // For non-doctor cases, just set loading to false
+      setLoading(false);
     }
   }, [who, doctorId]);
 
@@ -77,8 +92,29 @@ const DetailsScreen = ({ navigation, route }) => {
   }
   if (error && who === 'doctor') {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <Text style={{ color: 'red' }}>{error}</Text>
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: wp(5) }}>
+        <Text style={{ 
+          color: isDarkMode ? Colors.darkTheme.primaryTextColor : Colors.lightTheme.primaryTextColor,
+          fontSize: RFPercentage(2),
+          textAlign: 'center',
+          marginBottom: hp(2)
+        }}>
+          {error}
+        </Text>
+        <CustomButton 
+          text="Go Back" 
+          onPress={() => navigation.goBack()}
+          containerStyle={{
+            backgroundColor: isDarkMode ? Colors.darkTheme.primaryColor : Colors.lightTheme.primaryColor,
+            paddingHorizontal: wp(6),
+            paddingVertical: hp(1.5),
+            borderRadius: wp(2)
+          }}
+          textStyle={{
+            color: isDarkMode ? Colors.darkTheme.backgroundColor : Colors.lightTheme.backgroundColor,
+            fontSize: RFPercentage(2)
+          }}
+        />
       </View>
     );
   }

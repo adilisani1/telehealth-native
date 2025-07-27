@@ -1,7 +1,7 @@
 import React, {useState, useCallback, useEffect} from 'react';
 import {View, Text, StyleSheet, FlatList, Image, TouchableOpacity, RefreshControl} from 'react-native';
 import {Colors} from '../../../Constants/themeColors';
-import {useSelector} from 'react-redux';
+import {useSelector, useDispatch} from 'react-redux';
 import CustomButton from '../../../components/Buttons/customButton';
 import {
   widthPercentageToDP as wp,
@@ -18,6 +18,8 @@ import FullLoader from '../../../components/Loaders';
 import CategoryTab from './../../../components/FeatureCard/FeatureCard';
 import patientApi from '../../../services/patientApi';
 import doctorApi from '../../../services/doctorApi';
+import NotificationBadge from '../../../components/Badge/NotificationBadge';
+import { fetchNotifications } from '../../../redux/Slices/notificationsSlice';
 
 
 const doctors = [
@@ -158,8 +160,10 @@ const hospitals = [
 ];
 
 const Home = ({navigation}) => {
+  const dispatch = useDispatch();
   const {isDarkMode} = useSelector(store => store.theme);
-  const { User } = useSelector(store => store.auth); // Get user from Redux
+  const { User, userType } = useSelector(store => store.auth); // Get user from Redux
+  const { unreadCount } = useSelector(store => store.notifications);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Doctors');
   const [flatlistArray, setFlatListArray] = useState(doctors);
@@ -193,12 +197,23 @@ const Home = ({navigation}) => {
     fetchDashboardData();
   }, []);
 
+  // Fetch notifications for badge count
+  useEffect(() => {
+    if (User && userType) {
+      dispatch(fetchNotifications(userType));
+    }
+  }, [dispatch, User, userType]);
+
   // Pull-to-refresh handler
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     await fetchDashboardData();
+    // Also refresh notifications
+    if (User && userType) {
+      dispatch(fetchNotifications(userType));
+    }
     setRefreshing(false);
-  }, []);
+  }, [dispatch, User, userType]);
 
   const styles = StyleSheet.create({
     container: {
@@ -323,16 +338,19 @@ const Home = ({navigation}) => {
             <Text style={styles.subGreeting}>How are you today?</Text>
           </View>
         </View>
-        <CustomButton
-          icon={'bell-outline'}
-          iconSize={RFPercentage(3.2)}
-          iconColor={
-            isDarkMode
-              ? Colors.darkTheme.secondryTextColor
-              : Colors.lightTheme.secondryTextColor
-          }
-          onPress={() => navigation.navigate(SCREENS.NOTIFICATONS)}
-        />
+        <View style={{ position: 'relative' }}>
+          <CustomButton
+            icon={'bell-outline'}
+            iconSize={RFPercentage(3.2)}
+            iconColor={
+              isDarkMode
+                ? Colors.darkTheme.secondryTextColor
+                : Colors.lightTheme.secondryTextColor
+            }
+            onPress={() => navigation.navigate(SCREENS.NOTIFICATONS)}
+          />
+          <NotificationBadge count={unreadCount} isDarkMode={isDarkMode} />
+        </View>
       </View>
 
       {/* Search Bar */}

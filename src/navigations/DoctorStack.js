@@ -20,6 +20,7 @@ import PasswordManager from '../Screens/MainStack/PasswordManager';
 import NotificationSettings from '../Screens/MainStack/AppPrefrences';
 import DoctorBottomTabs from '../Screens/DoctorStack/DoctorBottomTabs';
 import DoctorPaymentOptions from '../Screens/DoctorStack/DoctorPaymentOptions';
+import UpdateProfile from '../Screens/MainStack/UpdateProfile';
 
 const Stack = createNativeStackNavigator();
 
@@ -70,6 +71,7 @@ const DoctorStack = () => {
         name={SCREENS.NOTIFICATIONSETTINGS}
         component={NotificationSettings}
       />
+      <Stack.Screen name={SCREENS.UPDATEPROFILE} component={UpdateProfile} />
 
       <Stack.Screen
         name={SCREENS.DOCTOR_PAYMENT_OPTIONS}

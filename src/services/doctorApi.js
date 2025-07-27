@@ -69,6 +69,12 @@ export const getDoctorNotifications = async () => {
   });
 };
 
+export const markNotificationAsRead = async (notificationId) => {
+  return api.put(`/api/doctor/notifications/${notificationId}/read`, {}, {
+    headers: await authHeaders(),
+  });
+};
+
 // Earning Negotiation
 export const getEarningNegotiation = async () => {
   return api.get('/api/doctor/earning-negotiation', {
@@ -117,6 +123,7 @@ export default {
   joinDoctorVideoCall,
   recordConsultationNotes,
   getDoctorNotifications,
+  markNotificationAsRead,
   getEarningNegotiation,
   postNegotiationMessage,
   getAvailableDoctors,

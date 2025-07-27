@@ -27,6 +27,11 @@ export const getProfile = async (req, res) => {
 
 export const updateProfile = async (req, res) => {
   try {
+    console.log('🔍 PROFILE UPDATE REQUEST RECEIVED');
+    console.log('🔍 User Role:', req.user.role);
+    console.log('🔍 Request Body:', req.body);
+    console.log('🔍 File:', req.file ? 'File uploaded' : 'No file');
+    
     const updates = req.body;
     
     // Normalize gender if provided

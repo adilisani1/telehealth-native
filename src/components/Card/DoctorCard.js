@@ -58,8 +58,8 @@ const DoctorCard = ({ item }) => {
     console.log(item.who, 'who')
 
     return (
-        <TouchableOpacity style={styles.doctorCard} oonPress={() => {
-            navigation.navigate(SCREENS.DETAILS, { who: 'doctor', doctorId: item._id });
+        <TouchableOpacity style={styles.doctorCard} onPress={() => {
+            navigation.navigate(SCREENS.DETAILS, { who: 'doctor', doctorId: item.id });
         }} >
             <View style={{ flexDirection: 'row' }} >
                 <Image source={Images.dr2} style={styles.doctorImage} />
@@ -74,7 +74,7 @@ const DoctorCard = ({ item }) => {
                 </View>
             </View>
             <CustomButton onPress={() => {
-                navigation.navigate(SCREENS.DETAILS, { who: 'doctor', doctorId: item._id });
+                navigation.navigate(SCREENS.DETAILS, { who: 'doctor', doctorId: item.id });
             }} icon={'arrow-right'} iconSize={RFPercentage(3.2)} iconColor={isDarkMode ? Colors.darkTheme.primaryTextColor : Colors.lightTheme.secondryTextColor} containerStyle={{ alignItems: 'center', justifyContent: 'center' }} />
             {/* {
                 item.who === 'ambulance' ? <CustomButton icon={'phone'} iconSize={RFPercentage(3.2)} iconColor={isDarkMode ? Colors.darkTheme.primaryTextColor : Colors.lightTheme.secondryTextColor} containerStyle={{ alignItems: 'center', justifyContent: 'center', backgroundColor: isDarkMode?Colors.darkTheme.primaryColor: Colors.lightTheme.primaryColor, paddingHorizontal: wp(2), height: hp(5), alignSelf: 'center', borderRadius: wp(6) }} />:
