@@ -18,6 +18,8 @@ import patientApi from '../../../services/patientApi';
 import { useAlert } from '../../../Providers/AlertContext';
 import FullLoader from '../../../components/Loaders';
 import { useFocusEffect } from '@react-navigation/native';
+import WriteReviewModal from '../../../components/Review/WriteReviewModal';
+import { createReview, getPatientReviews } from '../../../services/reviewApi';
 
 const AllAppointment = ({ navigation }) => {
   const [index, setIndex] = useState(0);
@@ -40,11 +42,18 @@ const AllAppointment = ({ navigation }) => {
     cancelled: [],
   });
 
+  // Review Modal State
+  const [reviewModalVisible, setReviewModalVisible] = useState(false);
+  const [selectedAppointmentForReview, setSelectedAppointmentForReview] = useState(null);
+  const [reviewLoading, setReviewLoading] = useState(false);
+  const [reviewedAppointments, setReviewedAppointments] = useState(new Set());
+
   const fetchAppointments = async () => {
     try {
-      const [upcomingRes, historyRes] = await Promise.all([
+      const [upcomingRes, historyRes, reviewsRes] = await Promise.all([
         patientApi.getUpcomingAppointments(),
         patientApi.getAppointmentHistory(),
+        getPatientReviews({ limit: 100 }).catch(() => ({ data: { success: false } })) // Get all patient reviews, ignore errors
       ]);
 
       const upcoming = upcomingRes.data.data.upcoming || [];
@@ -53,6 +62,17 @@ const AllAppointment = ({ navigation }) => {
       // Separate completed and cancelled from history
       const completed = history.filter(apt => apt.status === 'completed');
       const cancelled = history.filter(apt => apt.status === 'cancelled');
+
+      // Track which appointments have been reviewed
+      const reviewedSet = new Set();
+      if (reviewsRes.data.success && reviewsRes.data.data.reviews) {
+        reviewsRes.data.data.reviews.forEach(review => {
+          if (review.appointment) {
+            reviewedSet.add(review.appointment);
+          }
+        });
+      }
+      setReviewedAppointments(reviewedSet);
 
       setAppointmentData({
         upcoming: upcoming.map(formatAppointment),
@@ -108,6 +128,53 @@ const AllAppointment = ({ navigation }) => {
     } finally {
       setActionLoading(false);
     }
+  };
+
+  // Review Functions
+  const handleAddReview = (appointment) => {
+    setSelectedAppointmentForReview(appointment);
+    setReviewModalVisible(true);
+  };
+
+  const handleSubmitReview = async (reviewData) => {
+    try {
+      setReviewLoading(true);
+      
+      // If reviewData doesn't have appointmentId but we have a selected appointment, add it
+      const reviewPayload = {
+        ...reviewData
+      };
+      
+      // Ensure appointmentId is set if we have a pre-selected appointment
+      if (!reviewPayload.appointmentId && selectedAppointmentForReview?._id) {
+        reviewPayload.appointmentId = selectedAppointmentForReview._id;
+      }
+
+      const response = await createReview(reviewPayload);
+      
+      if (response.data.success) {
+        showAlert('Review submitted successfully!', 'success');
+        setReviewModalVisible(false);
+        
+        // Add the appointment to reviewed set
+        setReviewedAppointments(prev => new Set(prev).add(selectedAppointmentForReview._id));
+        
+        setSelectedAppointmentForReview(null);
+        // Optionally refresh appointments to get updated data
+        setLoading(true);
+      }
+    } catch (error) {
+      console.error('Review submission error:', error);
+      const errorMessage = error.response?.data?.message || 'Failed to submit review';
+      showAlert(errorMessage, 'error');
+    } finally {
+      setReviewLoading(false);
+    }
+  };
+
+  const handleCloseReviewModal = () => {
+    setReviewModalVisible(false);
+    setSelectedAppointmentForReview(null);
   };
 
   const Card = ({ item, actionButtons, onPress }) => (
@@ -168,18 +235,35 @@ const AllAppointment = ({ navigation }) => {
       <FlatList
         data={appointmentData.completed}
         style={{ paddingTop: hp(3) }}
-        renderItem={({ item }) => (
-          <Card
-            item={item}
-            onPress={() => navigation.navigate(SCREENS.MYAPPOINTMENT, { appointment: item.rawData })}
-            actionButtons={
-              <>
-                <CustomButton containerStyle={[styles.btn]} mode={true} text={'Re-Book'} textStyle={[styles.btnText]}  onPress={()=> navigation.navigate(SCREENS.NEWAPPOINTMENT, {title: 'Re-Book Appointment', doctor: item.rawData.doctor})}/>
-                <CustomButton containerStyle={[styles.btn]} text={'Add a Review'} textStyle={[styles.btnText, { color: isDarkMode ? Colors.darkTheme.primaryBtn.TextColor : Colors.lightTheme.primaryBtn.TextColor, }]} />
-              </>
-            }
-          />
-        )}
+        renderItem={({ item }) => {
+          const hasBeenReviewed = reviewedAppointments.has(item.rawData._id);
+          
+          return (
+            <Card
+              item={item}
+              onPress={() => navigation.navigate(SCREENS.MYAPPOINTMENT, { appointment: item.rawData })}
+              actionButtons={
+                <>
+                  <CustomButton containerStyle={[styles.btn]} mode={true} text={'Re-Book'} textStyle={[styles.btnText]}  onPress={()=> navigation.navigate(SCREENS.NEWAPPOINTMENT, {title: 'Re-Book Appointment', doctor: item.rawData.doctor})}/>
+                  {hasBeenReviewed ? (
+                    <View style={[styles.btn, { opacity: 0.5 }]}>
+                      <Text style={[styles.btnText, { color: isDarkMode ? Colors.darkTheme.secondryTextColor : Colors.lightTheme.secondryTextColor }]}>
+                        Review Added
+                      </Text>
+                    </View>
+                  ) : (
+                    <CustomButton 
+                      containerStyle={[styles.btn]} 
+                      text={'Add a Review'} 
+                      textStyle={[styles.btnText, { color: isDarkMode ? Colors.darkTheme.primaryBtn.TextColor : Colors.lightTheme.primaryBtn.TextColor, }]} 
+                      onPress={() => handleAddReview(item.rawData)}
+                    />
+                  )}
+                </>
+              }
+            />
+          );
+        }}
         keyExtractor={(item) => item.id}
         refreshing={loading}
         onRefresh={() => setLoading(true)}
@@ -196,15 +280,44 @@ const AllAppointment = ({ navigation }) => {
       <FlatList
         data={appointmentData.cancelled}
         style={{ paddingTop: hp(3) }}
-        renderItem={({ item }) => (
-          <Card
-            item={item}
-            onPress={() => navigation.navigate(SCREENS.MYAPPOINTMENT, { appointment: item.rawData })}
-            actionButtons={
-              <CustomButton containerStyle={[styles.btn, { width: wp(80) }]} text={'Add a Review '} textStyle={[styles.btnText, { color: isDarkMode ? Colors.darkTheme.primaryBtn.TextColor : Colors.lightTheme.primaryBtn.TextColor, }]} />
-            }
-          />
-        )}
+        renderItem={({ item }) => {
+          // Check if review button should be shown for cancelled appointments
+          // Only show if cancelled by doctor (not by patient)
+          const canReview = item.rawData.status === 'cancelled' 
+            ? item.rawData.cancelledBy && item.rawData.cancelledBy !== User._id
+            : true; // For completed appointments, always allow review
+            
+          const hasBeenReviewed = reviewedAppointments.has(item.rawData._id);
+
+          return (
+            <Card
+              item={item}
+              onPress={() => navigation.navigate(SCREENS.MYAPPOINTMENT, { appointment: item.rawData })}
+              actionButtons={
+                hasBeenReviewed ? (
+                  <View style={[styles.btn, { width: wp(80), opacity: 0.5 }]}>
+                    <Text style={[styles.btnText, { color: isDarkMode ? Colors.darkTheme.secondryTextColor : Colors.lightTheme.secondryTextColor }]}>
+                      Review Added
+                    </Text>
+                  </View>
+                ) : canReview ? (
+                  <CustomButton 
+                    containerStyle={[styles.btn, { width: wp(80) }]} 
+                    text={'Add a Review '} 
+                    textStyle={[styles.btnText, { color: isDarkMode ? Colors.darkTheme.primaryBtn.TextColor : Colors.lightTheme.primaryBtn.TextColor, }]} 
+                    onPress={() => handleAddReview(item.rawData)}
+                  />
+                ) : (
+                  <View style={[styles.btn, { width: wp(80), opacity: 0.5 }]}>
+                    <Text style={[styles.btnText, { color: isDarkMode ? Colors.darkTheme.secondryTextColor : Colors.lightTheme.secondryTextColor }]}>
+                      Review not available
+                    </Text>
+                  </View>
+                )
+              }
+            />
+          );
+        }}
         keyExtractor={(item) => item.id}
         refreshing={loading}
         onRefresh={() => setLoading(true)}
@@ -346,6 +459,16 @@ const AllAppointment = ({ navigation }) => {
           // pressOpacity={0,}
           />
         )}
+      />
+
+      {/* Write Review Modal */}
+      <WriteReviewModal
+        visible={reviewModalVisible}
+        onClose={handleCloseReviewModal}
+        onSubmit={handleSubmitReview}
+        doctorInfo={selectedAppointmentForReview?.doctor}
+        preSelectedAppointment={selectedAppointmentForReview}
+        loading={reviewLoading}
       />
 
     </View>

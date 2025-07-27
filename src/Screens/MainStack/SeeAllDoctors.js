@@ -13,6 +13,7 @@ import { SCREENS } from '../../Constants/Screens';
 import { Images } from '../../assets/Images/images';
 import doctorApi from '../../services/doctorApi';
 import FullLoader from '../../components/Loaders';
+import DisplayRating from '../../components/Rating/DisplayRating';
 
 
 const SeeAllDoctors = ({ navigation, route }) => {
@@ -30,7 +31,6 @@ const SeeAllDoctors = ({ navigation, route }) => {
             setError('');
             try {
                 const res = await doctorApi.getAvailableDoctors();
-                console.log("Error");
                 
                 const availableDoctors = res.data.data || [];
                 setDoctors(availableDoctors);
@@ -56,8 +56,14 @@ const SeeAllDoctors = ({ navigation, route }) => {
                 <Text style={styles.name}>{item.name}</Text>
                 <Text style={styles.specialization}>{item.specialization}</Text>
                 <View style={styles.ratingContainer}>
-                    {item.rating && <Text style={styles.rating}><Icon name='star' color={isDarkMode ? Colors.darkTheme.primaryColor : Colors.lightTheme.primaryColor} />{item.rating}</Text>}
-                    {item.reviews && <Text style={styles.reviews}>({item.reviews} reviews)</Text>}
+                    <DisplayRating 
+                        rating={item.doctorProfile?.averageRating || 0}
+                        totalReviews={item.doctorProfile?.totalReviews || 0}
+                        size={14}
+                        showCount={true}
+                        style={{ justifyContent: 'center' }}
+                        textStyle={{ fontSize: RFPercentage(1.4) }}
+                    />
                 </View>
             </TouchableOpacity>
         );

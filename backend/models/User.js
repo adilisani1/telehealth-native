@@ -20,6 +20,20 @@ const userSchema = new mongoose.Schema({
   }],
   earnings: { type: Number, default: 0 },
   timezone: { type: String }, // Doctor's timezone (e.g., 'Asia/Karachi')
+  
+  // Doctor rating and review fields
+  doctorProfile: {
+    averageRating: { type: Number, default: 0, min: 0, max: 5 },
+    totalReviews: { type: Number, default: 0 },
+    ratingDistribution: {
+      1: { type: Number, default: 0 },
+      2: { type: Number, default: 0 },
+      3: { type: Number, default: 0 },
+      4: { type: Number, default: 0 },
+      5: { type: Number, default: 0 }
+    },
+    isAcceptingReviews: { type: Boolean, default: true }
+  },
   // Earning module fields (doctor only)
   proposedFee: { type: Number, default: 0 }, // Doctor's proposed consultation fee
   agreedFee: { type: Number, default: 0 }, // Final agreed fee after negotiation

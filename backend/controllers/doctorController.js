@@ -51,6 +51,7 @@ export const getCancelledAppointments = async (req, res) => {
 import User from '../models/User.js';
 import Appointment from '../models/Appointment.js';
 import Prescription from '../models/Prescription.js';
+import Review from '../models/Review.js';
 import mongoose from 'mongoose';
 import AuditLog from '../models/AuditLog.js';
 import Notification from '../models/Notification.js';
@@ -315,7 +316,27 @@ export const getAvailableDoctors = async (req, res) => {
       role: 'doctor',
       availability: { $exists: true, $not: { $size: 0 } }
     }).select('name email specialization qualifications avatar timezone availability');
-    res.json({ success: true, data: doctors, message: 'Available doctors fetched successfully' });
+
+    // Add rating information for each doctor
+    const doctorsWithRatings = await Promise.all(
+      doctors.map(async (doctor) => {
+        const reviews = await Review.find({ doctor: doctor._id });
+        const totalReviews = reviews.length;
+        const averageRating = totalReviews > 0 
+          ? reviews.reduce((sum, review) => sum + review.rating, 0) / totalReviews 
+          : 0;
+
+        return {
+          ...doctor.toObject(),
+          doctorProfile: {
+            averageRating: parseFloat(averageRating.toFixed(1)),
+            totalReviews
+          }
+        };
+      })
+    );
+
+    res.json({ success: true, data: doctorsWithRatings, message: 'Available doctors fetched successfully' });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -330,18 +351,33 @@ export const getDoctorsRankedByCompletedAppointments = async (req, res) => {
       { $sort: { completedCount: -1 } },
       { $limit: 10 }, // Top 10 doctors
     ]);
+    
     // Get doctor details for each
     const doctorIds = results.map(r => r._id);
     const doctors = await User.find({ _id: { $in: doctorIds } })
       .select('name email specialization avatar');
-    // Merge counts with doctor info
-    const rankedDoctors = results.map(r => {
-      const doc = doctors.find(d => d._id.equals(r._id));
-      return {
-        ...doc.toObject(),
-        completedAppointments: r.completedCount
-      };
-    });
+
+    // Add rating information and merge with appointment counts
+    const rankedDoctors = await Promise.all(
+      results.map(async (r) => {
+        const doc = doctors.find(d => d._id.equals(r._id));
+        const reviews = await Review.find({ doctor: r._id });
+        const totalReviews = reviews.length;
+        const averageRating = totalReviews > 0 
+          ? reviews.reduce((sum, review) => sum + review.rating, 0) / totalReviews 
+          : 0;
+
+        return {
+          ...doc.toObject(),
+          completedAppointments: r.completedCount,
+          doctorProfile: {
+            averageRating: parseFloat(averageRating.toFixed(1)),
+            totalReviews
+          }
+        };
+      })
+    );
+
     res.json({ success: true, data: rankedDoctors });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -360,7 +396,23 @@ export const getPublicDoctorProfile = async (req, res) => {
     if (!doctor) {
       return res.status(404).json({ success: false, message: 'Doctor not found' });
     }
-    res.json({ success: true, data: doctor, message: 'Doctor public profile fetched successfully' });
+
+    // Add rating information
+    const reviews = await Review.find({ doctor: doctorId });
+    const totalReviews = reviews.length;
+    const averageRating = totalReviews > 0 
+      ? reviews.reduce((sum, review) => sum + review.rating, 0) / totalReviews 
+      : 0;
+
+    const doctorWithRating = {
+      ...doctor.toObject(),
+      doctorProfile: {
+        averageRating: parseFloat(averageRating.toFixed(1)),
+        totalReviews
+      }
+    };
+
+    res.json({ success: true, data: doctorWithRating, message: 'Doctor public profile fetched successfully' });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

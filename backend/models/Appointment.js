@@ -6,6 +6,8 @@ const appointmentSchema = new mongoose.Schema({
   date: { type: Date, required: true },
   timezone: { type: String, required: true },
   status: { type: String, enum: ['requested', 'accepted', 'completed', 'cancelled'], default: 'requested' },
+  cancelledBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  cancellationReason: { type: String },
   videoCallLink: { type: String },
   notes: { type: String },
   prescription: { type: mongoose.Schema.Types.ObjectId, ref: 'Prescription' },

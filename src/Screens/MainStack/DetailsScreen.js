@@ -1,30 +1,24 @@
 import { StyleSheet, Text, View } from 'react-native'
-import React, { useRef, useState } from 'react'
+import React, { useState } from 'react'
 import Details from './Details'
 import { Images } from '../../assets/Images/images'
 import { SCREENS } from '../../Constants/Screens'
-import Icon from 'react-native-vector-icons/MaterialIcons'; // Ensure you install react-native-vector-icons
-import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons'; // Ensure you install react-native-vector-icons
+import Icon from 'react-native-vector-icons/MaterialIcons';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { RFPercentage } from 'react-native-responsive-fontsize'
-import CRBSheetComponent from '../../components/BottomSheets/CRBSheetComponent'
-import CameraBottomSheet from '../../components/BottomSheets/CameraBottomSheet'
 import { useSelector } from 'react-redux'
 import { Colors } from '../../Constants/themeColors'
 import { Fonts } from '../../Constants/Fonts'
-import CustomRating from '../../components/CustomRating/CustomRating'
 import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-native-responsive-screen';
-import TxtInput from '../../components/TextInput/Txtinput'
-import CustomButton from '../../components/Buttons/customButton'
 import { useAlert } from '../../Providers/AlertContext'
 import appointmentApi from '../../services/appointmentApi';
 import FullLoader from '../../components/Loaders';
+import DisplayRating from '../../components/Rating/DisplayRating';
 
 const DetailsScreen = ({ navigation, route }) => {
   const who = route.params.who;
   const doctorId = route.params.doctorId;
-  const reviewSheet_Ref = useRef();
   const { isDarkMode } = useSelector((store) => store.theme);
-  const [review, setReview] = useState('');
   const { showAlert } = useAlert();
   const [doctor, setDoctor] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -129,7 +123,17 @@ const DetailsScreen = ({ navigation, route }) => {
           profileImage={doctor.avatar ? { uri: doctor.avatar } : Images.dr2}
           stats={[
             { icon: <Icon name={'workspace-premium'} size={RFPercentage(3)} color={'#e8899e'} />, value: doctor.qualifications || 'N/A', label: 'Qualifications', iconColor: '#e8899e' },
-            { icon: <Icon name={'star-outline'} size={RFPercentage(3)} color={'#f7c481'} />, value: doctor.rating || 'N/A', label: 'Ratings', iconColor: '#f7c481' },
+            { 
+              icon: <DisplayRating 
+                rating={doctor.doctorProfile?.averageRating || 0}
+                totalReviews={doctor.doctorProfile?.totalReviews || 0}
+                size={18}
+                showCount={false}
+              />, 
+              value: `${doctor.doctorProfile?.averageRating?.toFixed(1) || '0.0'} (${doctor.doctorProfile?.totalReviews || 0})`, 
+              label: 'Ratings', 
+              iconColor: '#f7c481' 
+            },
           ]}
           aboutText={doctor.qualifications || 'No additional information.'}
           workingTime={doctor.availability && doctor.availability.length > 0 ? 'Available for appointments' : 'No availability set.'}
@@ -140,14 +144,7 @@ const DetailsScreen = ({ navigation, route }) => {
               subtitle: 'Chat me up, share photos',
               backgroundColor: '#e8899e',
               onPress: () => navigation.navigate(SCREENS.CHAT),
-            },
-            {
-              iconName: 'star',
-              title: 'Add Review',
-              subtitle: 'Tap to review',
-              backgroundColor: '#7acefa',
-              onPress: () => reviewSheet_Ref.current.open(),
-            },
+            }
           ]}
           buttonLabel="New Appointment"
           buttonAction={() => navigation.navigate(SCREENS.NEWAPPOINTMENT, { title: 'New Appointment', doctor: doctor })}
@@ -234,38 +231,6 @@ const DetailsScreen = ({ navigation, route }) => {
           // buttonAction={() => navigation.navigate(SCREENS.BOOKAMBULANCE)}
           />
       }
-
-
-
-      <CRBSheetComponent refRBSheet={reviewSheet_Ref} content={<View style={{ flex: 1, }} >
-        <Text style={styles.sheatHeading} >Add Review</Text>
-        <View style={{ marginTop: hp(3) }} >
-          <CustomRating
-            count={5}
-            defaultRating={4}
-            size={RFPercentage(4)}
-            readonly={false}
-            starColor={isDarkMode ? Colors.darkTheme.primaryColor : Colors.lightTheme.primaryColor}
-            emptyStarColor={isDarkMode ? Colors.darkTheme.BorderGrayColor : Colors.lightTheme.BorderGrayColor}
-            onFinishRating={value => {
-              // setRating(value);
-            }}
-          />
-
-        </View>
-
-
-        <TxtInput placeholder={'Add Comment'} style={{ flex: 1, width: wp(80),marginTop: hp(2) }} value={review} onChangeText={setReview} containerStyle={{ paddingHorizontal: wp(3), borderWidth: 1, borderColor: isDarkMode? Colors.darkTheme.BorderGrayColor: Colors.lightTheme.BorderGrayColor, borderRadius: wp(2), }} multiline={true} numberOfLines={5} />
-
-        <CustomButton containerStyle={styles.btn} text={'Add Review'} textStyle={[styles.btnText]} onPress={() => {
-          showAlert('Review Added Successfully', 'success');
-          reviewSheet_Ref.current.close();
-        
-        }} />
-
-      </View>} />
-      {/* <CameraBottomSheet/> */}
-
 
     </View>
   )

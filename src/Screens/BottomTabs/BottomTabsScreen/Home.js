@@ -458,6 +458,8 @@ const Home = ({navigation}) => {
               name: item.name,
               specialization: item.specialization,
               completedAppointments: item.completedAppointments,
+              doctorProfile: item.doctorProfile,
+              // Keep fallback for backwards compatibility
               rating : item?.rating ? item.rating : 0.0,
               reviews : item?.reviews ? item.reviews : 0
             }} />}
