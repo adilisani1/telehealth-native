@@ -1,9 +1,21 @@
 import express from 'express';
 import { protect, authorizeRoles } from '../middleware/authMiddleware.js';
-import { bookAppointment, acceptAppointment, completeAppointment, cancelAppointment, getAvailableSlots, calendarIntegration, triggerMissedAppointments } from '../controllers/appointmentManagementController.js';
+import { bookAppointment, acceptAppointment, completeAppointment, cancelAppointment, getAvailableSlots, calendarIntegration, triggerMissedAppointments, validateAppointmentSlot } from '../controllers/appointmentManagementController.js';
 import { body } from 'express-validator';
 
 const router = express.Router();
+
+// Validate appointment slot before payment (patient)
+router.post('/validate-slot',
+  protect,
+  authorizeRoles('patient'),
+  [
+    body('doctorId').notEmpty().withMessage('Doctor ID is required'),
+    body('date').notEmpty().withMessage('Date is required'),
+    body('slot').notEmpty().withMessage('Slot is required')
+  ],
+  validateAppointmentSlot
+);
 
 // Book appointment (patient)
 router.post('/book',

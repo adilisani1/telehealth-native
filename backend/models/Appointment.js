@@ -17,6 +17,9 @@ const appointmentSchema = new mongoose.Schema({
   ageGroup: { type: String, required: true },
   gender: { type: String, required: true },
   problem: { type: String, required: true },
+  // Fee information
+  fee: { type: Number, default: 0 },
+  currency: { type: String, default: 'PKR' },
 }, { timestamps: true });
 
 const Appointment = mongoose.model('Appointment', appointmentSchema);

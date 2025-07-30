@@ -15,18 +15,20 @@ import { useSelector } from 'react-redux';
 import { Colors } from '../../Constants/themeColors';
 import CustomButton from '../../components/Buttons/customButton';
 import { SCREENS } from '../../Constants/Screens';
+import moment from 'moment';
 
-const PaymentSuccess = ({ navigation }) => {
+const PaymentSuccess = ({ navigation, route }) => {
     const { isDarkMode } = useSelector(store => store.theme);
+    
+    // Get appointment and doctor data from navigation params
+    const { appointment, doctor } = route.params || {};
 
     const handleViewAppointment = () => {
-        // Alert.alert('Navigate', 'View Appointment Pressed');
-        // Add navigation logic here
+        navigation.navigate(SCREENS.MYAPPOINTMENT);
     };
 
     const handleGoHome = () => {
-        // Alert.alert('Navigate', 'Go to Home Pressed');
-        // Add navigation logic here
+        navigation.navigate(SCREENS.TABS);
     };
 
 
@@ -141,7 +143,7 @@ const PaymentSuccess = ({ navigation }) => {
                     <Text style={styles.subText}>
                         You have successfully booked an appointment with
                     </Text>
-                    <Text style={styles.doctorName}>Dr. Kenny Adeola</Text>
+                    <Text style={styles.doctorName}>{doctor?.name || 'Doctor'}</Text>
                 </View>
 
                 {/* Appointment Details */}
@@ -149,21 +151,23 @@ const PaymentSuccess = ({ navigation }) => {
                     <View style={{ flexDirection: 'row', justifyContent: 'space-evenly' }} >
                         <View style={styles.detailRow}>
                             <Icon name="person" size={RFPercentage(3)} color={isDarkMode ? Colors.darkTheme.primaryColor : Colors.lightTheme.primaryColor} />
-                            <Text style={styles.detailText}>Madilyn Doe</Text>
+                            <Text style={styles.detailText}>{appointment?.patientName || 'Patient'}</Text>
                         </View>
                         <View style={styles.detailRow}>
                             <Icon name="confirmation-number" size={RFPercentage(3)} color={isDarkMode ? Colors.darkTheme.primaryColor : Colors.lightTheme.primaryColor} />
-                            <Text style={styles.detailText}>#20</Text>
+                            <Text style={styles.detailText}>#{appointment?._id?.slice(-6) || '000000'}</Text>
                         </View>
                     </View>
                     <View style={{ flexDirection: 'row', justifyContent: 'space-evenly' }} >
                         <View style={[styles.detailRow, { marginLeft: wp(4) }]}>
                             <Icon name="calendar-today" size={RFPercentage(3)} color={isDarkMode ? Colors.darkTheme.primaryColor : Colors.lightTheme.primaryColor} />
-                            <Text style={[styles.detailText,]}>19 Nov, 2023</Text>
+                            <Text style={[styles.detailText,]}>
+                              {appointment?.date ? moment(appointment.date).format('DD MMM, YYYY') : 'Date'}
+                            </Text>
                         </View>
                         <View style={styles.detailRow}>
                             <Icon name="schedule" size={RFPercentage(3)} color={isDarkMode ? Colors.darkTheme.primaryColor : Colors.lightTheme.primaryColor} />
-                            <Text style={styles.detailText}>8:30 AM</Text>
+                            <Text style={styles.detailText}>{appointment?.slot || 'Time'}</Text>
                         </View>
 
                     </View>
@@ -175,8 +179,8 @@ const PaymentSuccess = ({ navigation }) => {
             {/* Buttons */}
             <View style={styles.buttonContainer}>
 
-                <CustomButton containerStyle={styles.btn} text={'View Appointment'} textStyle={[styles.btnText, { color: isDarkMode ? Colors.darkTheme.primaryBtn.TextColor : Colors.lightTheme.primaryBtn.TextColor, }]} onPress={() => navigation.navigate(SCREENS.MYAPPOINTMENT)} />
-                <CustomButton containerStyle={styles.btn} text={'Go to Home'} mode={true} textStyle={[styles.btnText]} onPress={() => navigation.navigate(SCREENS.TABS)} />
+                <CustomButton containerStyle={styles.btn} text={'View Appointment'} textStyle={[styles.btnText, { color: isDarkMode ? Colors.darkTheme.primaryBtn.TextColor : Colors.lightTheme.primaryBtn.TextColor, }]} onPress={handleViewAppointment} />
+                <CustomButton containerStyle={styles.btn} text={'Go to Home'} mode={true} textStyle={[styles.btnText]} onPress={handleGoHome} />
 
             </View>
         </View>

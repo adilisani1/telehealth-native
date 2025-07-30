@@ -429,7 +429,7 @@ export const getPublicDoctorProfile = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Invalid doctor ID' });
     }
     const doctor = await User.findOne({ _id: doctorId, role: 'doctor' })
-      .select('name email specialization qualifications avatar timezone availability');
+      .select('name email specialization qualifications avatar timezone availability agreedFee currency earningNegotiationStatus');
     if (!doctor) {
       return res.status(404).json({ success: false, message: 'Doctor not found' });
     }

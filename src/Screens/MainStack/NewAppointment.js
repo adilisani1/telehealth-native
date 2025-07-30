@@ -368,6 +368,36 @@ const renderDateItem = (timestamp) => {
                 fontSize: RFPercentage(2),
     
             },
+            feeContainer: {
+                backgroundColor: isDarkMode ? Colors.darkTheme.secondryColor : Colors.lightTheme.secondryColor,
+                borderRadius: wp(3),
+                padding: wp(4),
+                marginVertical: hp(2),
+                borderWidth: 1,
+                borderColor: isDarkMode ? Colors.darkTheme.BorderGrayColor : Colors.lightTheme.BorderGrayColor,
+            },
+            feeRow: {
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: hp(1),
+            },
+            feeLabel: {
+                fontSize: RFPercentage(2),
+                fontFamily: Fonts.Regular,
+                color: isDarkMode ? Colors.darkTheme.primaryTextColor : Colors.lightTheme.primaryTextColor,
+            },
+            feeValue: {
+                fontSize: RFPercentage(2.2),
+                fontFamily: Fonts.Bold,
+                color: isDarkMode ? Colors.darkTheme.primaryColor : Colors.lightTheme.primaryColor,
+            },
+            feeNote: {
+                fontSize: RFPercentage(1.6),
+                fontFamily: Fonts.Regular,
+                color: isDarkMode ? Colors.darkTheme.secondryTextColor : Colors.lightTheme.secondryTextColor,
+                fontStyle: 'italic',
+            },
   });
 
 
@@ -500,6 +530,23 @@ const renderDateItem = (timestamp) => {
             style={styles.flatList}
           />
         )}
+        
+        {/* Consultation Fee Display */}
+        {doctor?.agreedFee && doctor?.earningNegotiationStatus === 'agreed' && (
+          <View style={styles.feeContainer}>
+            <Text style={styles.sectionTitle}>Consultation Fee</Text>
+            <View style={styles.feeRow}>
+              <Text style={styles.feeLabel}>Doctor's Fee:</Text>
+              <Text style={styles.feeValue}>
+                {doctor.currency || 'PKR'} {doctor.agreedFee}
+              </Text>
+            </View>
+            <Text style={styles.feeNote}>
+              * This is the agreed consultation fee for this doctor
+            </Text>
+          </View>
+        )}
+        
         <Text style={styles.sectionTitle}>Patient Details</Text>
         <Text style={[styles.label, { marginTop: wp(0) }]} >Full Name</Text>
         <TxtInput placeholder={'John Doe'} style={{ flex: 1, }} value={pName} onChangeText={setPName} containerStyle={{ paddingHorizontal: wp(3) }} />
@@ -593,40 +640,51 @@ const renderDateItem = (timestamp) => {
             showAlert(validationError, 'error');
             return;
           }
-          reff.current.close();
+          
           setBooking(true);
           
-          console.log('🔍 DEBUG: About to book appointment. Current healthRecordsData:', JSON.stringify(healthRecordsData, null, 2));
-          
           try {
+            // First validate the appointment slot
             const formattedDate = moment(selectedDate).format('YYYY-MM-DD');
-            const payload = {
+            const validationPayload = {
               doctorId: doctor._id,
               date: formattedDate,
-              slot: selectedTime,
-              patientName: pName,
-              ageGroup,
-              gender: selectedGender,
-              problem,
+              slot: selectedTime
             };
-            const res = await appointmentApi.bookAppointment(payload);
-            if (res.data && res.data.success) {
-              setSuccessMsg('Appointment Scheduled Successfully');
-              showAlert('Appointment Scheduled Successfully', 'success');
+            
+            const validationRes = await appointmentApi.validateAppointmentSlot(validationPayload);
+            
+            if (validationRes.data && validationRes.data.success) {
+              // Slot is valid, proceed to payment
+              reff.current.close();
               
-              // Upload health records after successful appointment booking
-              await uploadHealthRecords();
+              const appointmentData = {
+                doctorId: doctor._id,
+                date: formattedDate,
+                slot: selectedTime,
+                patientName: pName,
+                ageGroup,
+                gender: selectedGender,
+                problem,
+                doctor: doctor,
+                healthRecordsData: healthRecordsData,
+                title: title
+              };
               
-              setTimeout(() => {
-                title === 'Reschedule Appointment' ? navigation.navigate(SCREENS.MYAPPOINTMENT) : navigation.navigate(SCREENS.REVIEWSUMMARY, { appointment: res.data.data, doctor: doctor });
-              }, 1500);
+              // Navigate to payment screen
+              navigation.navigate(SCREENS.PAYMENTOPTION, { 
+                appointmentData: appointmentData,
+                amount: doctor?.agreedFee || 0,
+                currency: doctor?.currency || 'PKR'
+              });
             } else {
-              setErrorMsg(res.data.message || 'Failed to schedule appointment');
-              showAlert(res.data.message || 'Failed to schedule appointment', 'error');
+              setErrorMsg(validationRes.data.message || 'Slot validation failed');
+              showAlert(validationRes.data.message || 'Slot validation failed', 'error');
             }
           } catch (err) {
-            setErrorMsg(err.response?.data?.message || 'Failed to schedule appointment');
-            showAlert(err.response?.data?.message || 'Failed to schedule appointment', 'error');
+            const errorMessage = err.response?.data?.message || 'Failed to validate appointment slot';
+            setErrorMsg(errorMessage);
+            showAlert(errorMessage, 'error');
           } finally {
             setBooking(false);
           }

@@ -134,6 +134,12 @@ const DetailsScreen = ({ navigation, route }) => {
               label: 'Ratings', 
               iconColor: '#f7c481' 
             },
+            ...(doctor.agreedFee && doctor.earningNegotiationStatus === 'agreed' ? [{
+              icon: <MaterialCommunityIcons name={'currency-usd'} size={RFPercentage(3)} color={'#28a745'} />,
+              value: `${doctor.currency || 'PKR'} ${doctor.agreedFee}`,
+              label: 'Consultation Fee',
+              iconColor: '#28a745'
+            }] : [])
           ]}
           aboutText={doctor.qualifications || 'No additional information.'}
           workingTime={doctor.availability && doctor.availability.length > 0 ? 'Available for appointments' : 'No availability set.'}
@@ -148,6 +154,7 @@ const DetailsScreen = ({ navigation, route }) => {
           ]}
           buttonLabel="New Appointment"
           buttonAction={() => navigation.navigate(SCREENS.NEWAPPOINTMENT, { title: 'New Appointment', doctor: doctor })}
+          doctor={doctor}
         /> : who === 'pharmacy' ? <Details
           navigation={navigation}
           title="London Bridge Pharmacy"

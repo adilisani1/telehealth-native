@@ -205,10 +205,7 @@ const Details = ({
   const realName = doctor?.name || title;
   const realSpecialization = doctor?.specialization || subtitle;
   const realProfileImage = doctor?.avatar ? { uri: doctor.avatar } : profileImage;
-  const realStats = doctor ? [
-    { icon: <StatCard iconName="workspace-premium" />, value: doctor.qualifications || 'N/A', label: 'Qualifications', iconColor: '#e8899e' },
-    { icon: <StatCard iconName="star-outline" />, value: doctor.rating || 'N/A', label: 'Ratings', iconColor: '#f7c481' },
-  ] : stats;
+  const realStats = stats || [];
   const realAboutText = doctor?.qualifications || aboutText;
   const realWorkingTime = doctor?.availability && doctor.availability.length > 0 ? 'Available for appointments' : workingTime;
 
@@ -265,6 +262,20 @@ const Details = ({
       fontSize: RFPercentage(1.8),
       fontFamily: Fonts.Regular,
       color: isDarkMode ? Colors.darkTheme.primaryTextColor : Colors.lightTheme.secondryTextColor,
+    },
+    feeContainer: {
+      marginVertical: hp(2),
+      padding: wp(4),
+      backgroundColor: isDarkMode ? Colors.darkTheme.cardColor || '#2a2a2a' : '#f8f9fa',
+      borderRadius: wp(3),
+      borderWidth: 1,
+      borderColor: '#28a745',
+    },
+    feeText: {
+      fontSize: RFPercentage(2.5),
+      fontFamily: Fonts.Bold,
+      color: '#28a745',
+      textAlign: 'center',
     },
     btn: {
       backgroundColor: isDarkMode ? Colors.darkTheme.primaryBtn.BtnColor : Colors.lightTheme.primaryBtn.BtnColor,
@@ -324,6 +335,14 @@ const Details = ({
                 onPress={option.onPress}
               />
             ))}
+          </View>
+        )}
+        {doctor && doctor.agreedFee && doctor.earningNegotiationStatus === 'agreed' && (
+          <View style={styles.feeContainer}>
+            <Text style={styles.sectionTitle}>Consultation Fee</Text>
+            <Text style={styles.feeText}>
+              {doctor.currency || 'PKR'} {doctor.agreedFee}
+            </Text>
           </View>
         )}
         {buttonLabel && (

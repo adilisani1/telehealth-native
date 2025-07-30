@@ -59,6 +59,87 @@ async function scheduleAppointmentReminder(appointment) {
 // Any patient-provided timezone is ignored. All dates/times are interpreted as per the doctor's timezone.
 
 // 1. Book appointment (patient)
+// Validate appointment before payment (without booking)
+export const validateAppointmentSlot = async (req, res) => {
+  try {
+    const { doctorId, date, slot } = req.body;
+    
+    if (!doctorId || !date || !slot) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'All fields are required: doctorId, date, slot' 
+      });
+    }
+    
+    if (!mongoose.Types.ObjectId.isValid(doctorId)) {
+      return res.status(400).json({ success: false, message: 'Invalid doctor ID' });
+    }
+    
+    const doctor = await User.findOne({ _id: doctorId, role: 'doctor' });
+    if (!doctor) {
+      return res.status(404).json({ success: false, message: 'Doctor not found' });
+    }
+    
+    if (!doctor.timezone) {
+      return res.status(400).json({ success: false, message: 'Doctor timezone is not set' });
+    }
+    
+    // Validate slot in doctor's timezone
+    const dayOfWeek = moment.tz(date, doctor.timezone).format('dddd');
+    const availableDay = doctor.availability.find(a => a.day === dayOfWeek);
+    if (!availableDay || !availableDay.slots.includes(slot)) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Selected slot is not available for this doctor' 
+      });
+    }
+    
+    // Calculate slot start and end in doctor's timezone
+    const slotStart = moment.tz(date + ' ' + slot.split('-')[0], doctor.timezone);
+    const slotEnd = moment.tz(date + ' ' + slot.split('-')[1], doctor.timezone);
+    
+    // Prevent booking for past slots (in doctor's timezone)
+    if (slotStart.isBefore(moment.tz(doctor.timezone))) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Cannot book an appointment for a past date/time slot' 
+      });
+    }
+    
+    // Check for double booking
+    const conflict = await Appointment.findOne({
+      doctor: doctorId,
+      date: { $gte: slotStart.toDate(), $lt: slotEnd.toDate() },
+      status: { $in: ['requested', 'accepted'] }
+    });
+    
+    if (conflict) {
+      return res.status(409).json({ 
+        success: false, 
+        message: 'This slot is already booked. Please select another time.' 
+      });
+    }
+    
+    // If we reach here, the slot is valid and available
+    res.json({ 
+      success: true, 
+      message: 'Slot is available for booking',
+      data: {
+        doctorId,
+        date,
+        slot,
+        slotStartTime: slotStart.toISOString(),
+        slotEndTime: slotEnd.toISOString(),
+        timezone: doctor.timezone
+      }
+    });
+    
+  } catch (error) {
+    console.error('Error validating appointment slot:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+};
+
 export const bookAppointment = async (req, res) => {
   try {
     const { doctorId, date, slot, patientName, ageGroup, gender, problem } = req.body;
@@ -103,7 +184,9 @@ export const bookAppointment = async (req, res) => {
       patientName,
       ageGroup,
       gender,
-      problem
+      problem,
+      fee: doctor.agreedFee || 0, // Include doctor's agreed fee
+      currency: doctor.currency || 'PKR' // Include doctor's currency
     });
     await AuditLog.create({ user: req.user._id, action: 'book_appointment', target: 'Appointment', targetId: appointment._id, details: JSON.stringify({ doctorId, date, slot, timezone: doctor.timezone, patientName, ageGroup, gender, problem }) });
     // Send notification to doctor

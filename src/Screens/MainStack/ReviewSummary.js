@@ -205,23 +205,28 @@ const ReviewSummary = ({navigation, route}) => {
                     </View>
                 </View>
 
-                {/* Patient Info */}
+                {/* Fee Information */}
                 <View style={styles.sectionContainer}>
+                    <Text style={styles.sectionTitle}>Fee Summary</Text>
                     <View style={styles.infoRow}>
-                        <Text style={styles.infoLabel}>Amount</Text>
-                        <Text style={styles.infoValue}>$1000</Text>
-                    </View>
-                    <View style={styles.infoRow}>
-                        <Text style={styles.infoLabel}>Duration (30 mins)</Text>
-                        <Text style={styles.infoValue}>20 mins</Text>
+                        <Text style={styles.infoLabel}>Consultation Fee</Text>
+                        <Text style={styles.infoValue}>
+                            {appointment?.currency || 'PKR'} {appointment?.fee || doctor?.agreedFee || 'N/A'}
+                        </Text>
                     </View>
                     <View style={styles.infoRow}>
                         <Text style={styles.infoLabel}>Duration</Text>
-                        <Text style={styles.infoValue}>27 minutes</Text>
+                        <Text style={styles.infoValue}>30 minutes</Text>
                     </View>
                     <View style={styles.infoRow}>
-                        <Text style={styles.infoLabel}>Total</Text>
-                        <Text style={[styles.infoValue]} >$1500</Text>
+                        <Text style={styles.infoLabel}>Service Fee</Text>
+                        <Text style={styles.infoValue}>Free</Text>
+                    </View>
+                    <View style={[styles.infoRow, { borderTopWidth: 1, borderTopColor: isDarkMode ? Colors.darkTheme.BorderGrayColor : Colors.lightTheme.BorderGrayColor, paddingTop: hp(1), marginTop: hp(1) }]}>
+                        <Text style={[styles.infoLabel, { fontFamily: Fonts.Bold }]}>Total Amount</Text>
+                        <Text style={[styles.infoValue, { fontFamily: Fonts.Bold, fontSize: RFPercentage(2.2) }]}>
+                            {appointment?.currency || 'PKR'} {appointment?.fee || doctor?.agreedFee || 'N/A'}
+                        </Text>
                     </View>
                 </View>
                 <View style={styles.infoRow}>

@@ -14,6 +14,13 @@ const authHeaders = async () => {
   return { Authorization: `Bearer ${token}` };
 };
 
+// Validate Appointment Slot (Patient) - Before Payment
+export const validateAppointmentSlot = async (data) => {
+  return api.post('/api/appointment-management/validate-slot', data, {
+    headers: await authHeaders(),
+  });
+};
+
 // Book Appointment (Patient)
 export const bookAppointment = async (data) => {
   return api.post('/api/appointment-management/book', data, {
@@ -77,6 +84,7 @@ export const getAdminAuditLog = async () => {
 };
 
 export default {
+  validateAppointmentSlot,
   bookAppointment,
   acceptAppointment,
   completeAppointment,
