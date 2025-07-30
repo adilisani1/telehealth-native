@@ -61,7 +61,6 @@ async function scheduleAppointmentReminder(appointment) {
 // 1. Book appointment (patient)
 export const bookAppointment = async (req, res) => {
   try {
-    await markMissedAppointments();
     const { doctorId, date, slot, patientName, ageGroup, gender, problem } = req.body;
     if (!doctorId || !date || !slot || !patientName || !ageGroup || !gender || !problem) {
       return res.status(400).json({ success: false, message: 'All fields are required: doctorId, date, slot, patientName, ageGroup, gender, problem' });
@@ -141,7 +140,6 @@ export const acceptAppointment = async (req, res) => {
     if (!req.params.id || !mongoose.Types.ObjectId.isValid(req.params.id)) {
       return res.status(400).json({ success: false, message: 'Invalid appointment ID' });
     }
-    await markMissedAppointments();
     const appointment = await Appointment.findOne({ _id: req.params.id, doctor: req.user._id, status: 'requested' });
     if (!appointment) {
       console.log('❌ Appointment not found or not in requested state:', {
@@ -187,7 +185,6 @@ export const completeAppointment = async (req, res) => {
     if (!req.params.id || !mongoose.Types.ObjectId.isValid(req.params.id)) {
       return res.status(400).json({ success: false, message: 'Invalid appointment ID' });
     }
-    await markMissedAppointments();
     const appointment = await Appointment.findOne({ _id: req.params.id, doctor: req.user._id, status: 'accepted' });
     if (!appointment) {
       console.log('❌ Appointment not found or not in accepted state:', {
@@ -232,7 +229,6 @@ export const cancelAppointment = async (req, res) => {
     if (!req.params.id || !mongoose.Types.ObjectId.isValid(req.params.id)) {
       return res.status(400).json({ success: false, message: 'Invalid appointment ID' });
     }
-    await markMissedAppointments();
     const appointment = await Appointment.findOne({ _id: req.params.id });
     if (!appointment) {
       console.log('❌ Appointment not found:', req.params.id);

@@ -113,3 +113,14 @@ export const saveConsultationNotes = async (appointmentId, notesData) => {
     throw error.response?.data || error;
   }
 };
+
+export const getDoctorOwnReviews = async (token, page = 1, limit = 10) => {
+  try {
+    const response = await doctorApi.get(`/api/doctor/my-reviews?page=${page}&limit=${limit}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};

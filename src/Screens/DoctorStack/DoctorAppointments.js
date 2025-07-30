@@ -6,6 +6,7 @@ import {
   FlatList,
   TouchableOpacity,
   SafeAreaView,
+  Alert,
 } from 'react-native';
 import {useSelector} from 'react-redux';
 import {RFPercentage} from 'react-native-responsive-fontsize';
@@ -21,6 +22,8 @@ import StackHeader from '../../components/Header/StackHeader';
 import AppointmentDetailsModal from '../../components/AppointmentDetailsModal';
 import { useEffect, useCallback } from 'react';
 import { getDoctorUpcomingAppointments, getDoctorCompletedAppointments, getDoctorAppointmentHistory, getDoctorCancelledAppointments } from '../../services/doctorService';
+import { completeAppointment } from '../../services/appointmentManagementService';
+import { showAppointmentCompletionNotification } from '../../services/notificationService';
 import { getToken } from '../../utils/tokenStorage';
 import { debugAppointmentManagement, getCurrentAppointmentStatus } from '../../utils/appointmentManagementDebug';
 
@@ -40,6 +43,7 @@ const DoctorAppointments = ({navigation}) => {
   const [selectedAppointment, setSelectedAppointment] = React.useState(null);
   const [modalVisible, setModalVisible] = React.useState(false);
   const [debugMode, setDebugMode] = React.useState(false); // Toggle this to true for debugging
+  const [notifiedAppointments, setNotifiedAppointments] = React.useState(new Set()); // Track which appointments have been notified
 
   const mapAppointment = (a) => {
     console.log('🗂️ MAPPING APPOINTMENT STEP 1: Raw appointment received from backend');
@@ -161,6 +165,195 @@ const DoctorAppointments = ({navigation}) => {
     fetchAppointments();
   }, [fetchAppointments]);
 
+  // Enhanced notification checking
+  useEffect(() => {
+    const checkAppointmentCompletion = () => {
+      const acceptedAppointments = appointments.upcoming.filter(
+        appointment => appointment.status === 'accepted'
+      );
+      
+      let readyToCompleteCount = 0;
+      
+      acceptedAppointments.forEach(appointment => {
+        if (isAppointmentPastDue(appointment)) {
+          readyToCompleteCount++;
+          
+          if (!notifiedAppointments.has(appointment.id)) {
+            console.log(`📅 Appointment ${appointment.id} with ${appointment.patientName} is ready to be completed`);
+            
+            // Show notification
+            const notification = showAppointmentCompletionNotification(appointment);
+            console.log('🔔 Notification created for appointment completion');
+            
+            // Mark as notified
+            setNotifiedAppointments(prev => new Set([...prev, appointment.id]));
+          }
+        }
+      });
+      
+      if (debugMode && readyToCompleteCount > 0) {
+        console.log(`🎯 Found ${readyToCompleteCount} appointments ready to complete`);
+      }
+    };
+
+    // Only check if we have upcoming appointments
+    if (appointments.upcoming && appointments.upcoming.length > 0) {
+      checkAppointmentCompletion();
+    }
+
+    // Set up interval to check every minute
+    const interval = setInterval(() => {
+      if (appointments.upcoming && appointments.upcoming.length > 0) {
+        checkAppointmentCompletion();
+      }
+    }, 60000);
+
+    return () => clearInterval(interval);
+  }, [appointments.upcoming, notifiedAppointments, debugMode]);
+
+  // Enhanced appointment completion handler
+  const handleCompleteAppointment = async (appointmentId) => {
+    const appointment = appointments.upcoming.find(apt => apt.id === appointmentId);
+    
+    Alert.alert(
+      'Complete Appointment',
+      `Are you sure you want to mark the appointment with ${appointment?.patientName || 'this patient'} as completed?`,
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Mark Complete',
+          style: 'default',
+          onPress: async () => {
+            try {
+              setLoading(true);
+              console.log(`🔄 Completing appointment ${appointmentId}...`);
+              
+              await completeAppointment(appointmentId);
+              
+              console.log(`✅ Appointment ${appointmentId} completed successfully`);
+              
+              // Show success message
+              Alert.alert(
+                'Appointment Completed',
+                `The appointment with ${appointment?.patientName || 'the patient'} has been marked as completed successfully.`,
+                [{ text: 'OK' }]
+              );
+              
+              // Remove from notified list since it's now completed
+              setNotifiedAppointments(prev => {
+                const newSet = new Set(prev);
+                newSet.delete(appointmentId);
+                return newSet;
+              });
+              
+              // Refresh appointments list
+              await fetchAppointments();
+            } catch (error) {
+              console.error('Error completing appointment:', error);
+              Alert.alert(
+                'Error',
+                error.message || 'Failed to complete appointment. Please try again.',
+                [{ text: 'OK' }]
+              );
+            } finally {
+              setLoading(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  // Check if appointment time has passed
+  const isAppointmentPastDue = (appointment) => {
+    try {
+      if (!appointment.dateISO) {
+        console.warn('No dateISO found for appointment:', appointment.id);
+        return false;
+      }
+
+      // Use the ISO date directly if available, as it should include the full datetime
+      const appointmentDate = new Date(appointment.dateISO);
+      
+      // Validate the date
+      if (isNaN(appointmentDate.getTime())) {
+        console.warn('Invalid date for appointment:', appointment.id, appointment.dateISO);
+        return false;
+      }
+      
+      const now = new Date();
+      const isPastDue = appointmentDate < now;
+      
+      // Enhanced logging for debugging
+      if (debugMode) {
+        console.log(`⏰ Appointment ${appointment.id} time check:`, {
+          appointmentDateTime: appointmentDate.toLocaleString(),
+          currentTime: now.toLocaleString(),
+          isPastDue,
+          status: appointment.status,
+          originalDate: appointment.dateISO,
+          patientName: appointment.patientName
+        });
+      }
+      
+      return isPastDue;
+    } catch (error) {
+      console.error('Error checking appointment time:', error);
+      // If there's an error parsing the date, assume it's not past due
+      return false;
+    }
+  };
+
+  // Enhanced function to determine if appointment should show complete button
+  const shouldShowCompleteButton = (appointment) => {
+    return appointment.status === 'accepted' && isAppointmentPastDue(appointment);
+  };
+
+  // Enhanced function to determine if appointment should show video call button
+  const shouldShowVideoCallButton = (appointment) => {
+    return appointment.status === 'accepted' && !isAppointmentPastDue(appointment);
+  };
+
+  // Get time elapsed since appointment was scheduled
+  const getTimeElapsedSinceAppointment = (appointment) => {
+    try {
+      const appointmentDate = new Date(appointment.dateISO);
+      
+      // If the time field exists and is separate, we need to parse it
+      if (appointment.time && typeof appointment.time === 'string') {
+        const timeMatch = appointment.time.match(/(\d{1,2}):(\d{2})/);
+        if (timeMatch) {
+          const [, hour, minute] = timeMatch;
+          appointmentDate.setHours(parseInt(hour), parseInt(minute), 0, 0);
+        }
+      }
+      
+      const now = new Date();
+      const diffMs = now - appointmentDate;
+      const diffMinutes = Math.floor(diffMs / (1000 * 60));
+      
+      if (diffMinutes < 0) {
+        return 'upcoming';
+      } else if (diffMinutes < 60) {
+        return `${diffMinutes} min ago`;
+      } else {
+        const diffHours = Math.floor(diffMinutes / 60);
+        if (diffHours < 24) {
+          return `${diffHours} hr ago`;
+        } else {
+          const diffDays = Math.floor(diffHours / 24);
+          return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+        }
+      }
+    } catch (error) {
+      console.error('Error calculating time elapsed:', error);
+      return 'unknown';
+    }
+  };
+
   const tabs = [
     {key: 'upcoming', label: 'Upcoming', count: appointments.upcoming.length},
     {key: 'completed', label: 'Completed', count: appointments.completed.length},
@@ -223,79 +416,104 @@ const DoctorAppointments = ({navigation}) => {
     fetchAppointments();
   };
 
-  const AppointmentCard = ({item}) => (
-    <TouchableOpacity
-      style={[styles.appointmentCard, {backgroundColor: theme.secondryColor}]}
-      onPress={() => handleAppointmentPress(item)}
-      activeOpacity={0.7}>
-      <View style={styles.appointmentHeader}>
-        <View style={styles.appointmentInfo}>
-          <Text style={[styles.patientName, {color: theme.primaryTextColor}]}>
-            {item.patientName}
-          </Text>
-          <Text
-            style={[styles.appointmentTime, {color: theme.secondryTextColor}]}>
-            {item.time} • {item.date}
-          </Text>
-          <Text style={[styles.appointmentType, {color: theme.primaryColor}]}>
-            {item.type}
-          </Text>
-          {item.fee && (
-            <Text style={[styles.appointmentFee, {color: theme.secondryTextColor}]}>
-              {item.currency || 'PKR'} {item.fee}
+  const AppointmentCard = ({item}) => {
+    const isPastDue = isAppointmentPastDue(item);
+    const timeElapsed = getTimeElapsedSinceAppointment(item);
+    
+    if (debugMode) {
+      console.log(`🎯 Rendering appointment card for ${item.patientName}:`, {
+        id: item.id,
+        status: item.status,
+        isPastDue,
+        timeElapsed,
+        shouldShowComplete: shouldShowCompleteButton(item),
+        shouldShowVideo: shouldShowVideoCallButton(item)
+      });
+    }
+    
+    return (
+      <TouchableOpacity
+        style={[styles.appointmentCard, {backgroundColor: theme.secondryColor}]}
+        onPress={() => handleAppointmentPress(item)}
+        activeOpacity={0.7}>
+        <View style={styles.appointmentHeader}>
+          <View style={styles.appointmentInfo}>
+            <Text style={[styles.patientName, {color: theme.primaryTextColor}]}>
+              {item.patientName}
             </Text>
-          )}
-        </View>
-        <View style={styles.appointmentActions}>
-          <View
-            style={[
-              styles.statusBadge,
-              {backgroundColor: getStatusColor(item.status)},
-            ]}>
-            <Text style={styles.statusText}>
-              {item.status.charAt(0).toUpperCase() + item.status.slice(1)}
+            <Text style={[styles.appointmentTime, {color: theme.secondryTextColor}]}>
+              {item.time} • {item.date}
+              {isPastDue && item.status === 'accepted' && timeElapsed !== 'upcoming' && (
+                <Text style={[styles.pastDueIndicator, {color: Colors.warning}]}>
+                  {' '}• {timeElapsed}
+                </Text>
+              )}
             </Text>
+            <Text style={[styles.appointmentType, {color: theme.primaryColor}]}>
+              {item.type}
+            </Text>
+            {item.fee && (
+              <Text style={[styles.appointmentFee, {color: theme.secondryTextColor}]}>
+                {item.currency || 'PKR'} {item.fee}
+              </Text>
+            )}
           </View>
-          
-          {/* Show different actions based on status */}
-          {item.status === 'requested' && (
-            <View style={styles.requestedActions}>
-              <Icon 
-                name="clock-alert-outline" 
-                size={RFPercentage(2.5)} 
-                color={Colors.warning} 
-              />
-              <Text style={[styles.actionHint, {color: theme.secondryTextColor}]}>
-                Tap to respond
+          <View style={styles.appointmentActions}>
+            <View
+              style={[
+                styles.statusBadge,
+                {backgroundColor: getStatusColor(item.status)},
+              ]}>
+              <Text style={styles.statusText}>
+                {item.status.charAt(0).toUpperCase() + item.status.slice(1)}
+                {isPastDue && item.status === 'accepted' && ' - Ready to Complete'}
               </Text>
             </View>
-          )}
-          
-          {item.status === 'accepted' && (
-            <TouchableOpacity
-              style={[styles.actionButton, {backgroundColor: Colors.success}]}
-              onPress={() => navigation.navigate(SCREENS.CALL)}>
-              <Icon name="video" size={RFPercentage(2)} color={Colors.white} />
-            </TouchableOpacity>
-          )}
-          
-          {/* Show complete option for accepted appointments that are past due */}
-          {item.status === 'accepted' && new Date(item.dateISO) < new Date() && (
-            <View style={styles.completionHint}>
-              <Icon 
-                name="check-circle-outline" 
-                size={RFPercentage(2)} 
-                color={Colors.info} 
-              />
-              <Text style={[styles.actionHint, {color: Colors.info}]}>
-                Can complete
-              </Text>
-            </View>
-          )}
+            
+            {/* Show different actions based on status and time */}
+            {item.status === 'requested' && (
+              <View style={styles.requestedActions}>
+                <Icon 
+                  name="clock-alert-outline" 
+                  size={RFPercentage(2.5)} 
+                  color={Colors.warning} 
+                />
+                <Text style={[styles.actionHint, {color: theme.secondryTextColor}]}>
+                  Tap to respond
+                </Text>
+              </View>
+            )}
+            
+            {/* Video call button for accepted appointments before their time */}
+            {shouldShowVideoCallButton(item) && (
+              <TouchableOpacity
+                style={[styles.actionButton, {backgroundColor: Colors.success}]}
+                onPress={() => navigation.navigate(SCREENS.CALL)}>
+                <Icon name="video" size={RFPercentage(2)} color={Colors.white} />
+                <Text style={[styles.actionButtonText, {color: Colors.white}]}>
+                  Join Call
+                </Text>
+              </TouchableOpacity>
+            )}
+            
+            {/* Complete button for accepted appointments that are past due */}
+            {shouldShowCompleteButton(item) && (
+              <View style={styles.completionSection}>
+                <TouchableOpacity
+                  style={[styles.actionButton, styles.completeButton, {backgroundColor: Colors.info}]}
+                  onPress={() => handleCompleteAppointment(item.id)}>
+                  <Icon name="check-circle" size={RFPercentage(2)} color={Colors.white} />
+                  <Text style={[styles.actionButtonText, {color: Colors.white}]}>
+                    Mark Complete
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
         </View>
-      </View>
-    </TouchableOpacity>
-  );
+      </TouchableOpacity>
+    );
+  };
 
   const TabButton = ({tab}) => (
     <TouchableOpacity
@@ -368,6 +586,11 @@ const DoctorAppointments = ({navigation}) => {
       fontFamily: Fonts.Regular,
       marginBottom: hp(0.5),
     },
+    pastDueIndicator: {
+      fontSize: RFPercentage(1.6),
+      fontFamily: Fonts.Medium,
+      fontStyle: 'italic',
+    },
     appointmentType: {
       fontSize: RFPercentage(1.6),
       fontFamily: Fonts.Regular,
@@ -379,14 +602,20 @@ const DoctorAppointments = ({navigation}) => {
     },
     appointmentActions: {
       alignItems: 'flex-end',
+      minWidth: wp(25),
     },
     requestedActions: {
       alignItems: 'center',
       marginTop: hp(0.5),
     },
-    completionHint: {
-      alignItems: 'center',
+    completionSection: {
+      alignItems: 'flex-end',
       marginTop: hp(0.5),
+    },
+    elapsedTime: {
+      fontSize: RFPercentage(1.2),
+      fontFamily: Fonts.Regular,
+      marginBottom: hp(0.5),
     },
     actionHint: {
       fontSize: RFPercentage(1.2),
@@ -410,6 +639,16 @@ const DoctorAppointments = ({navigation}) => {
       borderRadius: wp(2),
       alignItems: 'center',
       justifyContent: 'center',
+      flexDirection: 'row',
+      minWidth: wp(20),
+    },
+    completeButton: {
+      minWidth: wp(25),
+    },
+    actionButtonText: {
+      fontSize: RFPercentage(1.4),
+      fontFamily: Fonts.Medium,
+      marginLeft: wp(1),
     },
     emptyContainer: {
       flex: 1,

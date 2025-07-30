@@ -198,15 +198,33 @@ export const postDoctorEarningNegotiation = async (req, res) => {
     }
     const doctor = await User.findOne({ _id: id, role: 'doctor' });
     if (!doctor) return res.status(404).json({ success: false, message: 'Doctor not found' });
+    
     // Add negotiation message
     if (message) {
-      doctor.earningNegotiationHistory.push({ sender: 'admin', message });
+      doctor.earningNegotiationHistory.push({ 
+        sender: 'admin', 
+        message,
+        proposedFee: typeof proposedFee !== 'undefined' ? Number(proposedFee) : undefined,
+        currency: currency || doctor.currency
+      });
     }
+    
     // Update negotiation fields if provided
-    if (typeof proposedFee !== 'undefined') doctor.proposedFee = Number(proposedFee);
+    if (typeof proposedFee !== 'undefined') {
+      doctor.proposedFee = Number(proposedFee);
+      // If we're updating an agreed negotiation, update the agreedFee as well
+      if (doctor.earningNegotiationStatus === 'agreed') {
+        doctor.agreedFee = Number(proposedFee);
+      }
+    }
     if (currency && ['USD', 'PKR'].includes(currency)) doctor.currency = currency;
     if (typeof commission !== 'undefined') doctor.commission = Number(commission);
-    if (status && ['pending', 'negotiating', 'agreed'].includes(status)) doctor.earningNegotiationStatus = status;
+    
+    // Only update status if explicitly provided and not already agreed
+    if (status && ['pending', 'negotiating', 'agreed'].includes(status)) {
+      doctor.earningNegotiationStatus = status;
+    }
+    
     await doctor.save();
     res.json({ success: true, data: doctor, message: 'Negotiation updated' });
   } catch (error) {

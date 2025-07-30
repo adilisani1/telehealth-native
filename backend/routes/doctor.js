@@ -16,7 +16,8 @@ import {
   postMyEarningNegotiationMessage,
   getCancelledAppointments,
   getAvailableDoctors,
-  getDoctorsRankedByCompletedAppointments
+  getDoctorsRankedByRating,
+  getDoctorOwnReviews
 } from '../controllers/doctorController.js';
 import { body } from 'express-validator';
 
@@ -72,7 +73,9 @@ router.post('/earning-negotiation/message',
 
 // Get all available doctors (for patients)
 router.get('/available', getAvailableDoctors);
-// Get top-ranked doctors based on completed appointments
-router.get('/top-ranked', getDoctorsRankedByCompletedAppointments);
+// Get top-ranked doctors based on ratings
+router.get('/top-ranked', getDoctorsRankedByRating);
+// Get doctor's own reviews and rating statistics
+router.get('/my-reviews', protect, authorizeRoles('doctor'), getDoctorOwnReviews);
 
 export default router;

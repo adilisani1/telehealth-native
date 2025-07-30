@@ -5,7 +5,7 @@ const appointmentSchema = new mongoose.Schema({
   doctor: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   date: { type: Date, required: true },
   timezone: { type: String, required: true },
-  status: { type: String, enum: ['requested', 'accepted', 'completed', 'cancelled'], default: 'requested' },
+  status: { type: String, enum: ['requested', 'accepted', 'completed', 'cancelled', 'missed'], default: 'requested' },
   cancelledBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   cancellationReason: { type: String },
   videoCallLink: { type: String },

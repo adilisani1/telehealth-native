@@ -35,7 +35,9 @@ const lightTheme = {
 export const Colors = {
     darkTheme,
     lightTheme,
+    primary: '#0e61f3',
     error: '#E52030',
+    danger: '#E52030',
     success: '#129957',
     warning: '#FF9500',
     info: '#007AFF',

@@ -1,5 +1,3 @@
-'use client';
-
 import {useState, useEffect} from 'react';
 import {
   View,
@@ -11,7 +9,7 @@ import {
 } from 'react-native';
 import {useSelector, useDispatch} from 'react-redux';
 import { getProfile } from '../../services/authApi';
-import { getDoctorUpcomingAppointments, getDoctorAppointmentHistory } from '../../services/doctorService';
+import { getDoctorUpcomingAppointments, getDoctorAppointmentHistory, getDoctorOwnReviews } from '../../services/doctorService';
 import axios from 'axios';
 import { setUser, logoutUser } from '../../redux/Slices/authSlice';
 import { getToken, removeToken } from '../../utils/tokenStorage';
@@ -44,6 +42,11 @@ const DoctorDashboard = ({navigation}) => {
     commonConditions: [],
   });
   const [todaysAppointments, setTodaysAppointments] = useState([]);
+  const [ratingStats, setRatingStats] = useState({
+    averageRating: 0,
+    totalReviews: 0,
+    ratingDistribution: { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 }
+  });
 
   const theme = isDarkMode ? Colors.darkTheme : Colors.lightTheme;
 
@@ -91,9 +94,10 @@ const DoctorDashboard = ({navigation}) => {
       const token = await getToken();
       if (token) {
         // Fetch both completed and upcoming appointments
-        const [upcomingRes, historyRes] = await Promise.all([
+        const [upcomingRes, historyRes, reviewsRes] = await Promise.all([
           getDoctorUpcomingAppointments(token),
           getDoctorAppointmentHistory(token),
+          getDoctorOwnReviews(token, 1, 1), // Just get stats, no need for all reviews
         ]);
         const upcomingAppointments = Array.isArray(upcomingRes?.data?.appointments)
           ? upcomingRes.data.appointments
@@ -166,6 +170,11 @@ const DoctorDashboard = ({navigation}) => {
           averageAge,
           commonConditions,
         }));
+
+        // Set rating stats
+        if (reviewsRes?.data?.ratingStats) {
+          setRatingStats(reviewsRes.data.ratingStats);
+        }
 
         // Filter today's appointments
         const today = new Date();
@@ -281,7 +290,7 @@ const DoctorDashboard = ({navigation}) => {
     scrollContainer: {
       padding: wp(4),
     },
-    availabilityContainer: {
+    ratingContainer: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
@@ -290,15 +299,30 @@ const DoctorDashboard = ({navigation}) => {
       borderRadius: wp(3),
       marginBottom: hp(2),
     },
-    availabilityText: {
+    ratingText: {
       fontSize: RFPercentage(2.2),
       fontFamily: Fonts.Medium,
       color: theme.primaryTextColor,
+      marginBottom: hp(1),
     },
-    availabilityStatus: {
+    ratingInfo: {
+      flexDirection: 'column',
+      alignItems: 'flex-start',
+    },
+    starsContainer: {
+      flexDirection: 'row',
+      marginBottom: hp(0.5),
+    },
+    ratingValue: {
       fontSize: RFPercentage(1.8),
+      fontFamily: Fonts.SemiBold,
+      color: theme.primaryColor,
+      marginBottom: hp(0.2),
+    },
+    reviewCount: {
+      fontSize: RFPercentage(1.5),
       fontFamily: Fonts.Regular,
-      color: Colors.success,
+      color: theme.secondryTextColor,
     },
     statsContainer: {
       flexDirection: 'row',
@@ -429,15 +453,33 @@ const DoctorDashboard = ({navigation}) => {
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }>
-        <View style={styles.availabilityContainer}>
+        <View style={styles.ratingContainer}>
           <View>
-            <Text style={styles.availabilityText}>Availability Status</Text>
-            <Text style={styles.availabilityStatus}>Available</Text>
+            <Text style={styles.ratingText}>My Rating</Text>
+            <View style={styles.ratingInfo}>
+              <View style={styles.starsContainer}>
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <Icon
+                    key={star}
+                    name={star <= Math.round(ratingStats.averageRating) ? 'star' : 'star-outline'}
+                    size={RFPercentage(2.5)}
+                    color={star <= Math.round(ratingStats.averageRating) ? Colors.warning : theme.secondryTextColor}
+                  />
+                ))}
+              </View>
+              <Text style={styles.ratingValue}>
+                {ratingStats.averageRating > 0 ? `${ratingStats.averageRating}/5` : 'No ratings yet'}
+              </Text>
+              <Text style={styles.reviewCount}>
+                ({ratingStats.totalReviews} review{ratingStats.totalReviews !== 1 ? 's' : ''})
+              </Text>
+            </View>
           </View>
           <CustomButton
-            text="Go Offline"
+            text="View Reviews"
+            onPress={() => navigation.navigate(SCREENS.DOCTOR_REVIEWS)}
             containerStyle={{
-              backgroundColor: Colors.error,
+              backgroundColor: theme.primaryColor,
               paddingHorizontal: wp(4),
               paddingVertical: hp(1.5),
             }}

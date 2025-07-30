@@ -9,6 +9,7 @@ import ConsultationNotes from '../Screens/DoctorStack/ConsultationNotes';
 import ManageAvailability from '../Screens/DoctorStack/ManageAvailability';
 import DoctorEarnings from '../Screens/DoctorStack/DoctorEarnings';
 import DoctorAppointments from '../Screens/DoctorStack/DoctorAppointments';
+import DoctorReviews from '../Screens/DoctorStack/DoctorReviews';
 
 import CallScreen from '../Screens/MainStack/Call/CallScreen';
 import CallHistoryScreen from '../Screens/MainStack/Call/CallHistoryScreen';
@@ -55,6 +56,7 @@ const DoctorStack = () => {
         name={SCREENS.DOCTOR_APPOINTMENTS}
         component={DoctorAppointments}
       />
+      <Stack.Screen name={SCREENS.DOCTOR_REVIEWS} component={DoctorReviews} />
 
       {/* Shared Screens */}
       <Stack.Screen name={SCREENS.CALL} component={CallScreen} />

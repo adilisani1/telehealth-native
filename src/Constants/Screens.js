@@ -111,4 +111,5 @@ export const SCREENS = {
   DOCTOR_BOTTOM_TABS: 'DoctorBottomTabs',
   DOCTOR_ADMIN_CHAT: 'DoctorAdminChat',
   DOCTOR_PAYMENT_OPTIONS: 'DoctorPaymentOptions',
+  DOCTOR_REVIEWS: 'DoctorReviews',
 };

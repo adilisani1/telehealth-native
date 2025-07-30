@@ -46,6 +46,30 @@ export const getUpcomingAppointments = async () => {
   });
 };
 
+export const getMissedAppointments = async () => {
+  return api.get('/api/appointments/missed', {
+    headers: await authHeaders(),
+  });
+};
+
+export const createTestMissedAppointment = async () => {
+  return api.post('/api/appointments/test-missed', {}, {
+    headers: await authHeaders(),
+  });
+};
+
+export const convertToMissedAppointments = async () => {
+  return api.post('/api/appointments/convert-to-missed', {}, {
+    headers: await authHeaders(),
+  });
+};
+
+export const getAllAppointmentsDebug = async () => {
+  return api.get('/api/appointments/debug-all', {
+    headers: await authHeaders(),
+  });
+};
+
 // Prescriptions
 export const getPrescriptions = async () => {
   return api.get('/api/prescriptions', {
@@ -86,6 +110,10 @@ export default {
   deleteHealthRecord,
   getAppointmentHistory,
   getUpcomingAppointments,
+  getMissedAppointments,
+  createTestMissedAppointment,
+  convertToMissedAppointments,
+  getAllAppointmentsDebug,
   getPrescriptions,
   downloadPdfPrescription,
   getNotifications,

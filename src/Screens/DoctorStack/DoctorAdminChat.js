@@ -6,6 +6,7 @@ import {
   FlatList,
   TextInput,
   TouchableOpacity,
+  Alert,
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import Ionicons from 'react-native-vector-icons/Ionicons';
@@ -20,8 +21,35 @@ const DoctorAdminChat = () => {
   const [proposedFee, setProposedFee] = useState('');
   const [currency, setCurrency] = useState('PKR');
   const [loading, setLoading] = useState(false);
+  const [doctorData, setDoctorData] = useState(null);
+  const [isEditingFee, setIsEditingFee] = useState(false);
 
-  // Polling: fetch messages every 3 seconds
+  // Fetch doctor data to pre-populate fields
+  useEffect(() => {
+    const fetchDoctorData = async () => {
+      try {
+        const token = await getToken();
+        const res = await axios.get(
+          `${BASE_URL}/api/doctor/earning-negotiation`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        const data = res?.data?.data;
+        if (data) {
+          setDoctorData(data);
+          // Only pre-populate currency, NOT the fee
+          // Let the doctor enter their own proposed fee
+          if (data.currency && !currency) {
+            setCurrency(data.currency);
+          }
+        }
+      } catch (e) {
+        console.log('Error fetching doctor data:', e);
+      }
+    };
+    fetchDoctorData();
+  }, []);
+
+  // Polling: fetch messages every 3 seconds and update doctor data
   useEffect(() => {
     let intervalId;
     const fetchMessages = async () => {
@@ -32,18 +60,31 @@ const DoctorAdminChat = () => {
           `${BASE_URL}/api/doctor/earning-negotiation`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
-        // Use earningNegotiationHistory from res.data.data
-        const history = res?.data?.data?.earningNegotiationHistory || [];
-        // Map to message format for display
-        const mappedMessages = history.map(msg => ({
-          id: msg._id,
-          sender: msg.sender,
-          text: msg.message,
-          timestamp: msg.timestamp,
-          proposedFee: msg.proposedFee,
-          currency: msg.currency,
-        }));
-        setMessages(mappedMessages);
+        const data = res?.data?.data;
+        
+        if (data) {
+          // Update doctor data state
+          setDoctorData(data);
+          
+          // DON'T override the doctor's proposed fee input
+          // Only update currency if user is not editing and it changed server-side
+          if (!isEditingFee && data.currency && data.currency !== currency) {
+            setCurrency(data.currency);
+          }
+          
+          // Use earningNegotiationHistory from res.data.data
+          const history = data.earningNegotiationHistory || [];
+          // Map to message format for display
+          const mappedMessages = history.map(msg => ({
+            id: msg._id,
+            sender: msg.sender,
+            text: msg.message,
+            timestamp: msg.timestamp,
+            proposedFee: msg.proposedFee,
+            currency: msg.currency,
+          }));
+          setMessages(mappedMessages);
+        }
       } catch (e) {
         setMessages([]);
       } finally {
@@ -55,34 +96,58 @@ const DoctorAdminChat = () => {
     return () => {
       clearInterval(intervalId);
     };
-  }, []);
+  }, [currency, isEditingFee]); // Removed proposedFee dependency to prevent override
 
   // Send message to admin
   const sendMessage = async () => {
-    if (input.trim() && proposedFee && currency) {
-      try {
-        const token = await getToken();
-        const payload = {
-          message: input,
-          proposedFee: Number(proposedFee),
+    if (!input.trim()) {
+      Alert.alert('Error', 'Please enter a message');
+      return;
+    }
+    if (!proposedFee || isNaN(Number(proposedFee)) || Number(proposedFee) <= 0) {
+      Alert.alert('Error', 'Please enter a valid fee amount');
+      return;
+    }
+    
+    // Check if proposed fee matches current agreed fee
+    const isFeeSameAsAgreed = doctorData?.agreedFee && Number(proposedFee) === doctorData.agreedFee;
+    
+    try {
+      const token = await getToken();
+      const payload = {
+        message: input.trim(),
+        proposedFee: Number(proposedFee),
+        currency,
+      };
+      const response = await axios.post(
+        `${BASE_URL}/api/doctor/earning-negotiation/message`,
+        payload,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      
+      // Optimistically add to chat
+      setMessages([
+        ...messages,
+        { 
+          id: String(messages.length + 1), 
+          sender: 'doctor', 
+          text: input.trim(), 
+          proposedFee: Number(proposedFee), 
           currency,
-        };
-        await axios.post(
-          `${BASE_URL}/api/doctor/earning-negotiation/message`,
-          payload,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-        // Optimistically add to chat
-        setMessages([
-          ...messages,
-          { id: String(messages.length + 1), sender: 'doctor', text: input, proposedFee, currency },
-        ]);
-        setInput('');
-        setProposedFee('');
-        setCurrency('PKR');
-      } catch (e) {
-        // handle error
+          timestamp: new Date().toISOString()
+        },
+      ]);
+      setInput('');
+      
+      // Show helpful feedback based on fee change
+      if (isFeeSameAsAgreed) {
+        Alert.alert('Message Sent', 'Your message was sent. Since your proposed fee matches the current agreed fee, the negotiation status remains unchanged.');
       }
+      
+      // Don't clear fee fields as they should persist for negotiation
+    } catch (e) {
+      console.error('Error sending message:', e);
+      Alert.alert('Error', 'Failed to send message. Please try again.');
     }
   };
 
@@ -101,6 +166,49 @@ const DoctorAdminChat = () => {
   return (
     <View style={[styles.container, {paddingBottom: 32}]}> 
       <Text style={styles.header}>Chat with Admin</Text>
+      
+      {/* Status Display */}
+      {doctorData && (
+        <View style={styles.statusContainer}>
+          <Text style={styles.statusLabel}>Negotiation Status:</Text>
+          <Text style={[
+            styles.statusText,
+            doctorData.earningNegotiationStatus === 'agreed' ? styles.statusAgreed : 
+            doctorData.earningNegotiationStatus === 'negotiating' ? styles.statusNegotiating : 
+            styles.statusPending
+          ]}>
+            {doctorData.earningNegotiationStatus?.toUpperCase() || 'PENDING'}
+          </Text>
+          
+          {/* Current Agreed Fee (what admin has approved) */}
+          {doctorData.agreedFee && (
+            <Text style={styles.agreedFeeText}>
+              Current Agreed Fee: {doctorData.agreedFee} {doctorData.currency}
+            </Text>
+          )}
+          
+          {/* Last Proposed Fee (what doctor previously proposed) */}
+          {doctorData.proposedFee && (
+            <Text style={styles.proposedFeeText}>
+              Last Proposed Fee: {doctorData.proposedFee} {doctorData.currency}
+            </Text>
+          )}
+          
+          {/* New Proposal (what doctor is currently typing) */}
+          {proposedFee && proposedFee !== (doctorData.proposedFee || '').toString() && (
+            <Text style={[
+              styles.newProposalText,
+              doctorData.agreedFee && Number(proposedFee) === doctorData.agreedFee ? styles.sameAsAgreedText : null
+            ]}>
+              {doctorData.agreedFee && Number(proposedFee) === doctorData.agreedFee 
+                ? `Same as Agreed: ${proposedFee} ${currency} (No status change)`
+                : `New Proposal: ${proposedFee} ${currency}`
+              }
+            </Text>
+          )}
+        </View>
+      )}
+      
       <FlatList
         data={messages}
         renderItem={renderItem}
@@ -126,6 +234,8 @@ const DoctorAdminChat = () => {
             placeholder="Fee"
             value={proposedFee}
             onChangeText={setProposedFee}
+            onFocus={() => setIsEditingFee(true)}
+            onBlur={() => setIsEditingFee(false)}
             keyboardType="numeric"
             placeholderTextColor="#888"
           />
@@ -156,6 +266,58 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     textAlign: 'center',
     paddingVertical: 12,
+  },
+  statusContainer: {
+    backgroundColor: '#f8f9fa',
+    padding: 12,
+    marginHorizontal: 16,
+    marginBottom: 8,
+    borderRadius: 8,
+    borderLeftWidth: 4,
+    borderLeftColor: '#0e61f3',
+  },
+  statusLabel: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 4,
+  },
+  statusText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  statusAgreed: {
+    color: '#28a745',
+  },
+  statusNegotiating: {
+    color: '#ffc107',
+  },
+  statusPending: {
+    color: '#6c757d',
+  },
+  agreedFeeText: {
+    fontSize: 14,
+    color: '#28a745',
+    fontWeight: '600',
+  },
+  proposedFeeText: {
+    fontSize: 14,
+    color: '#0e61f3',
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  newProposalText: {
+    fontSize: 14,
+    color: '#ff6b35',
+    fontWeight: '700',
+    marginTop: 2,
+    backgroundColor: '#fff3e0',
+    padding: 4,
+    borderRadius: 4,
+  },
+  sameAsAgreedText: {
+    color: '#28A745', // Green for same as agreed
+    backgroundColor: '#e8f5e8',
   },
   message: {marginVertical: 6, maxWidth: '70%', padding: 10, borderRadius: 12},
   doctor: {alignSelf: 'flex-end', backgroundColor: '#0e61f3'},

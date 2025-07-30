@@ -76,17 +76,21 @@ export const getUpcomingAppointments = async (req, res) => {
   try {
     console.log('🔍 BACKEND: getUpcomingAppointments called by doctor:', req.user._id);
     
-    const now = new Date();
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
-    const total = await Appointment.countDocuments({ doctor: req.user._id, status: { $in: ['requested', 'accepted'] }, date: { $gte: now } });
+    
+    // Fixed: Don't filter by date for accepted appointments - they should remain in upcoming until completed
+    const total = await Appointment.countDocuments({ 
+      doctor: req.user._id, 
+      status: { $in: ['requested', 'accepted'] }
+    });
     
     console.log('🔍 BACKEND: Querying appointments with patient population...');
     const appointments = await Appointment.find({
       doctor: req.user._id,
-      status: { $in: ['requested', 'accepted'] },
-      date: { $gte: now }
+      status: { $in: ['requested', 'accepted'] }
+      // Removed date filter - accepted appointments should remain visible even after their time
     })
       .populate('patient', 'name email phone gender dob healthInfo address')
       .sort({ date: 1 })
@@ -342,49 +346,82 @@ export const getAvailableDoctors = async (req, res) => {
   }
 };
 
-export const getDoctorsRankedByCompletedAppointments = async (req, res) => {
+export const getDoctorsRankedByRating = async (req, res) => {
   try {
-    // Aggregate completed appointments per doctor
-    const results = await Appointment.aggregate([
-      { $match: { status: 'completed' } },
-      { $group: { _id: '$doctor', completedCount: { $sum: 1 } } },
-      { $sort: { completedCount: -1 } },
-      { $limit: 10 }, // Top 10 doctors
-    ]);
-    
-    // Get doctor details for each
-    const doctorIds = results.map(r => r._id);
-    const doctors = await User.find({ _id: { $in: doctorIds } })
+    // Get all doctors who have at least one review
+    const doctors = await User.find({ role: 'doctor' })
       .select('name email specialization avatar');
 
-    // Add rating information and merge with appointment counts
-    const rankedDoctors = await Promise.all(
-      results.map(async (r) => {
-        const doc = doctors.find(d => d._id.equals(r._id));
-        const reviews = await Review.find({ doctor: r._id });
+    // Calculate comprehensive score for each doctor
+    const doctorsWithScores = await Promise.all(
+      doctors.map(async (doctor) => {
+        const reviews = await Review.find({ doctor: doctor._id });
         const totalReviews = reviews.length;
         const averageRating = totalReviews > 0 
           ? reviews.reduce((sum, review) => sum + review.rating, 0) / totalReviews 
           : 0;
 
+        // Get completed appointments count
+        const completedCount = await Appointment.countDocuments({ 
+          doctor: doctor._id, 
+          status: 'completed' 
+        });
+
+        // Calculate comprehensive score
+        let comprehensiveScore = 0;
+        
+        if (totalReviews > 0) {
+          // Base score from average rating (0-5)
+          const ratingScore = averageRating;
+          
+          // Review reliability factor (logarithmic scaling to prevent single review dominance)
+          // This ensures doctors with more reviews get higher reliability scores
+          const reviewReliabilityFactor = Math.log10(totalReviews + 1) / Math.log10(11); // Normalize to 0-1 range
+          
+          // Experience factor based on completed appointments (logarithmic scaling)
+          const experienceFactor = Math.log10(completedCount + 1) / Math.log10(101); // Normalize to 0-1 range
+          
+          // Weighted comprehensive score
+          // 60% rating, 25% review reliability, 15% experience
+          comprehensiveScore = (ratingScore * 0.6) + 
+                             (reviewReliabilityFactor * 5 * 0.25) + 
+                             (experienceFactor * 5 * 0.15);
+        }
+
         return {
-          ...doc.toObject(),
-          completedAppointments: r.completedCount,
+          ...doctor.toObject(),
+          completedAppointments: completedCount,
           doctorProfile: {
             averageRating: parseFloat(averageRating.toFixed(1)),
-            totalReviews
+            totalReviews,
+            comprehensiveScore: parseFloat(comprehensiveScore.toFixed(2))
           }
         };
       })
     );
 
+    // Filter out doctors with no reviews and sort by comprehensive score (highest first)
+    const rankedDoctors = doctorsWithScores
+      .filter(doctor => doctor.doctorProfile.totalReviews > 0)
+      .sort((a, b) => {
+        // Primary sort: by comprehensive score (descending)
+        if (b.doctorProfile.comprehensiveScore !== a.doctorProfile.comprehensiveScore) {
+          return b.doctorProfile.comprehensiveScore - a.doctorProfile.comprehensiveScore;
+        }
+        // Secondary sort: by average rating (descending) if scores are equal
+        if (b.doctorProfile.averageRating !== a.doctorProfile.averageRating) {
+          return b.doctorProfile.averageRating - a.doctorProfile.averageRating;
+        }
+        // Tertiary sort: by number of reviews (descending) if ratings are equal
+        return b.doctorProfile.totalReviews - a.doctorProfile.totalReviews;
+      })
+      .slice(0, 10); // Top 10 doctors
+
     res.json({ success: true, data: rankedDoctors });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
-};
-
-// 8. Public doctor profile and availability (for patients)
+};// 8. Public doctor profile and availability (for patients)
 export const getPublicDoctorProfile = async (req, res) => {
   try {
     const doctorId = req.params.doctorId;
@@ -445,14 +482,113 @@ export const postMyEarningNegotiationMessage = async (req, res) => {
     const doctor = await User.findById(req.user._id);
     if (!doctor) return res.status(404).json({ success: false, message: 'Doctor not found' });
 
-    doctor.earningNegotiationHistory.push({ sender: 'doctor', message });
+    doctor.earningNegotiationHistory.push({ 
+      sender: 'doctor', 
+      message,
+      proposedFee: typeof proposedFee !== 'undefined' ? Number(proposedFee) : undefined,
+      currency: currency || doctor.currency
+    });
 
-    if (typeof proposedFee !== 'undefined') doctor.proposedFee = Number(proposedFee);
+    // Only change status to 'negotiating' if the proposed fee is different from agreed fee
+    let statusChanged = false;
+    if (typeof proposedFee !== 'undefined') {
+      const newProposedFee = Number(proposedFee);
+      doctor.proposedFee = newProposedFee;
+      
+      // Only change status if the new proposed fee is different from the current agreed fee
+      if (doctor.earningNegotiationStatus === 'agreed' && doctor.agreedFee) {
+        if (newProposedFee !== doctor.agreedFee) {
+          doctor.earningNegotiationStatus = 'negotiating';
+          statusChanged = true;
+        }
+        // If the proposed fee equals the agreed fee, keep status as 'agreed'
+      } else {
+        // If not previously agreed, set to negotiating
+        doctor.earningNegotiationStatus = 'negotiating';
+        statusChanged = true;
+      }
+    }
+    
     if (currency && ['USD', 'PKR'].includes(currency)) doctor.currency = currency;
-    doctor.earningNegotiationStatus = 'negotiating';
 
     await doctor.save();
-    res.json({ success: true, data: doctor, message: 'Negotiation message sent to admin' });
+    
+    const responseMessage = statusChanged 
+      ? 'Negotiation message sent to admin. Status updated to negotiating due to fee change.'
+      : 'Message sent to admin. Status remains unchanged as proposed fee matches agreed fee.';
+    
+    res.json({ success: true, data: doctor, message: responseMessage });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// Get doctor's own reviews and rating statistics
+export const getDoctorOwnReviews = async (req, res) => {
+  try {
+    if (req.user.role !== 'doctor') {
+      return res.status(403).json({ success: false, message: 'Only doctors can access this endpoint' });
+    }
+
+    const doctorId = req.user._id;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+
+    // Get all reviews for this doctor with appointment and patient details
+    const total = await Review.countDocuments({ doctor: doctorId });
+    const reviews = await Review.find({ doctor: doctorId })
+      .populate([
+        { 
+          path: 'patient', 
+          select: 'name email avatar' 
+        },
+        { 
+          path: 'appointment', 
+          select: 'date status',
+          populate: {
+            path: 'patient',
+            select: 'name'
+          }
+        }
+      ])
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    // Calculate rating statistics
+    const allReviews = await Review.find({ doctor: doctorId });
+    const totalReviews = allReviews.length;
+    const averageRating = totalReviews > 0 
+      ? allReviews.reduce((sum, review) => sum + review.rating, 0) / totalReviews 
+      : 0;
+
+    // Rating distribution
+    const ratingDistribution = {
+      5: allReviews.filter(r => r.rating === 5).length,
+      4: allReviews.filter(r => r.rating === 4).length,
+      3: allReviews.filter(r => r.rating === 3).length,
+      2: allReviews.filter(r => r.rating === 2).length,
+      1: allReviews.filter(r => r.rating === 1).length,
+    };
+
+    const ratingStats = {
+      averageRating: parseFloat(averageRating.toFixed(1)),
+      totalReviews,
+      ratingDistribution
+    };
+
+    res.json({ 
+      success: true, 
+      data: { 
+        reviews, 
+        ratingStats, 
+        total, 
+        page, 
+        pages: Math.ceil(total / limit) 
+      }, 
+      message: 'Doctor reviews fetched successfully' 
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
