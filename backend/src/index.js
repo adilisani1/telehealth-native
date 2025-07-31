@@ -12,6 +12,7 @@ import doctorRoutes from '../routes/doctor.js';
 import appointmentManagementRoutes from '../routes/appointmentManagement.js';
 import adminRoutes from '../routes/admin.js';
 import reviewRoutes from '../routes/review.js';
+import stripeRoutes from '../routes/stripe.js';
 import path from 'path';
 import helmet from 'helmet';
 
@@ -52,6 +53,7 @@ app.use('/api/doctor', doctorRoutes);
 app.use('/api/appointment-management', appointmentManagementRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/reviews', reviewRoutes);
+app.use('/api/stripe', stripeRoutes);
 
 // Global error handler
 app.use((err, req, res, next) => {

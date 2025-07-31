@@ -2,6 +2,7 @@ import { SafeAreaView, StatusBar, StyleSheet, View , useColorScheme} from 'react
 import React, { useEffect } from 'react';
 import { Provider, useDispatch, useSelector } from 'react-redux';
 import { PersistGate } from 'redux-persist/integration/react';
+// import { StripeProvider } from '@stripe/stripe-react-native';
 import { AlertProvider } from './src/Providers/AlertContext';
 import DynamicAlert from './src/components/DynamicAlert';
 import Router from './src/navigations/router';
@@ -13,6 +14,9 @@ import { setDarkMode } from './src/redux/Slices/Theme';
 import {AuthProvider} from './src/Providers/AuthProvider';
 import {VideoCallProvider} from './src/Providers/VideoCallProvider';
 import {SocketProvider} from './src/Providers/SocketProvider';
+
+// Stripe Configuration
+const STRIPE_PUBLISHABLE_KEY = 'pk_test_51MTM9REHiZKfEP69NWDg7k86uCfuLj7iSZpNj9gLlEALMwImrRX1Hgu00xuL2pRCyuDOULI76BavITsWvWcUw9Cy00736ciHby';
 
 const MainRoot = () => {
   const {isDarkMode} = useSelector(store => store.theme);
@@ -57,20 +61,22 @@ export default function App() {
   return (
     <Provider store={Store}>
       <PersistGate loading={null} persistor={persistor}>
-        <AuthErrorBoundary onReset={() => {
-          // Force app to reload after auth reset
-          console.log('App restarting after auth reset...');
-        }}>
-          <AlertProvider>
-            <SocketProvider>
-              <VideoCallProvider>
-                <AuthProvider>
-                  <MainRoot />
-                </AuthProvider>
-              </VideoCallProvider>
-            </SocketProvider>
-          </AlertProvider>
-        </AuthErrorBoundary>
+        {/* <StripeProvider publishableKey={STRIPE_PUBLISHABLE_KEY}> */}
+          <AuthErrorBoundary onReset={() => {
+            // Force app to reload after auth reset
+            console.log('App restarting after auth reset...');
+          }}>
+            <AlertProvider>
+              <SocketProvider>
+                <VideoCallProvider>
+                  <AuthProvider>
+                    <MainRoot />
+                  </AuthProvider>
+                </VideoCallProvider>
+              </SocketProvider>
+            </AlertProvider>
+          </AuthErrorBoundary>
+        {/* </StripeProvider> */}
       </PersistGate>
     </Provider>
   );

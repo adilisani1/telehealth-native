@@ -1,15 +1,18 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-native-responsive-screen';
 import { RFPercentage } from 'react-native-responsive-fontsize';
 import { useSelector } from 'react-redux';
+// import { useStripe, useConfirmPayment } from '@stripe/stripe-react-native';
 import { Colors } from '../../Constants/themeColors';
 import StackHeader from '../../components/Header/StackHeader';
-import  Icon  from 'react-native-vector-icons/MaterialCommunityIcons';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import FontAwesome5Pro from 'react-native-vector-icons/FontAwesome5Pro';
+import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { SCREENS } from '../../Constants/Screens';
 import { Fonts } from '../../Constants/Fonts';
 import appointmentApi from '../../services/appointmentApi';
+import stripeService from '../../services/stripeService';
 import healthRecordsApi from '../../services/healthRecordsApi';
 import { useAlert } from '../../Providers/AlertContext';
 import FullLoader from '../../components/Loaders';
@@ -18,6 +21,8 @@ import moment from 'moment';
 const PaymentOptions = ({navigation, route}) => {
   const { isDarkMode } = useSelector(store => store.theme);
   const { showAlert } = useAlert();
+  // const stripe = useStripe();
+  // const { confirmPayment } = useConfirmPayment();
   const [processing, setProcessing] = useState(false);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState(null);
   
@@ -96,64 +101,78 @@ const PaymentOptions = ({navigation, route}) => {
     setProcessing(true);
     
     try {
-      // Simulate payment processing delay
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      // Re-validate the slot just before booking to handle race conditions
-      const revalidationPayload = {
-        doctorId: appointmentData.doctorId,
-        date: appointmentData.date,
-        slot: appointmentData.slot
-      };
-      
-      const revalidationRes = await appointmentApi.validateAppointmentSlot(revalidationPayload);
-      
-      if (!revalidationRes.data || !revalidationRes.data.success) {
-        throw new Error(revalidationRes.data?.message || 'Slot is no longer available. Please select a different time.');
-      }
-      
-      // After successful payment and validation, book the appointment
-      const payload = {
-        doctorId: appointmentData.doctorId,
-        date: appointmentData.date,
-        slot: appointmentData.slot,
-        patientName: appointmentData.patientName,
-        ageGroup: appointmentData.ageGroup,
-        gender: appointmentData.gender,
-        problem: appointmentData.problem,
-      };
-      
-      const res = await appointmentApi.bookAppointment(payload);
-      
-      if (res.data && res.data.success) {
-        showAlert('Payment successful! Appointment booked.', 'success');
+      // Handle Stripe Card Payment
+      if (paymentMethod === 'Add New Card') {
+        // Temporarily disabled - Stripe native module linking issue
+        Alert.alert(
+          'Payment Method Unavailable',
+          'Credit card payments are temporarily unavailable due to a technical issue. Please use other payment methods.',
+          [
+            { text: 'OK', onPress: () => setProcessing(false) }
+          ]
+        );
+        return;
+      } else {
+        // Handle other payment methods (mock payment)
+        // Simulate payment processing delay
+        await new Promise(resolve => setTimeout(resolve, 2000));
         
-        // Upload health records if available
-        if (appointmentData.healthRecordsData) {
-          try {
-            await uploadHealthRecords(appointmentData.healthRecordsData);
-          } catch (uploadError) {
-            console.log('Health records upload failed, but appointment was booked successfully');
-          }
+        // Re-validate the slot just before booking to handle race conditions
+        const revalidationPayload = {
+          doctorId: appointmentData.doctorId,
+          date: appointmentData.date,
+          slot: appointmentData.slot
+        };
+        
+        const revalidationRes = await appointmentApi.validateAppointmentSlot(revalidationPayload);
+        
+        if (!revalidationRes.data || !revalidationRes.data.success) {
+          throw new Error(revalidationRes.data?.message || 'Slot is no longer available. Please select a different time.');
         }
         
-        // Navigate to success screen
-        setTimeout(() => {
-          if (appointmentData.title === 'Reschedule Appointment') {
-            navigation.reset({
-              index: 0,
-              routes: [{ name: SCREENS.TABS }],
-            });
-            navigation.navigate(SCREENS.MYAPPOINTMENT);
-          } else {
-            navigation.navigate(SCREENS.PAYMENTSUCCESS, { 
-              appointment: res.data.data, 
-              doctor: appointmentData.doctor 
-            });
+        // After successful payment and validation, book the appointment
+        const payload = {
+          doctorId: appointmentData.doctorId,
+          date: appointmentData.date,
+          slot: appointmentData.slot,
+          patientName: appointmentData.patientName,
+          ageGroup: appointmentData.ageGroup,
+          gender: appointmentData.gender,
+          problem: appointmentData.problem,
+        };
+        
+        const res = await appointmentApi.bookAppointment(payload);
+        
+        if (res.data && res.data.success) {
+          showAlert('Payment successful! Appointment booked.', 'success');
+          
+          // Upload health records if available
+          if (appointmentData.healthRecordsData) {
+            try {
+              await uploadHealthRecords(appointmentData.healthRecordsData);
+            } catch (uploadError) {
+              console.log('Health records upload failed, but appointment was booked successfully');
+            }
           }
-        }, 1000);
-      } else {
-        throw new Error(res.data.message || 'Failed to book appointment');
+          
+          // Navigate to success screen
+          setTimeout(() => {
+            if (appointmentData.title === 'Reschedule Appointment') {
+              navigation.reset({
+                index: 0,
+                routes: [{ name: SCREENS.TABS }],
+              });
+              navigation.navigate(SCREENS.MYAPPOINTMENT);
+            } else {
+              navigation.navigate(SCREENS.PAYMENTSUCCESS, { 
+                appointment: res.data.data, 
+                doctor: appointmentData.doctor 
+              });
+            }
+          }, 1000);
+        } else {
+          throw new Error(res.data.message || 'Failed to book appointment');
+        }
       }
     } catch (err) {
       console.error('Payment/Booking error:', err);

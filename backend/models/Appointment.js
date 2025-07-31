@@ -11,7 +11,15 @@ const appointmentSchema = new mongoose.Schema({
   videoCallLink: { type: String },
   notes: { type: String },
   prescription: { type: mongoose.Schema.Types.ObjectId, ref: 'Prescription' },
-  paymentStatus: { type: String, enum: ['pending', 'paid', 'failed'], default: 'pending' },
+  paymentStatus: { type: String, enum: ['pending', 'paid', 'failed', 'refunded'], default: 'pending' },
+  // Payment information for Stripe integration
+  paymentIntentId: { type: String, sparse: true, index: true },
+  paymentMethod: { type: String, enum: ['stripe', 'cash', 'other'], default: 'stripe' },
+  stripeChargeId: { type: String, sparse: true },
+  paymentTimestamp: { type: Date },
+  refundId: { type: String, sparse: true },
+  refundTimestamp: { type: Date },
+  refundReason: { type: String },
   // Patient details for the appointment
   patientName: { type: String, required: true },
   ageGroup: { type: String, required: true },
