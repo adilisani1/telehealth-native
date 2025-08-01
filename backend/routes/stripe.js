@@ -30,7 +30,7 @@ router.post('/create-payment-intent',
         return true;
       }),
     body('currency')
-      .optional()
+      .isString()
       .isLength({ min: 3, max: 3 })
       .withMessage('Currency must be a 3-letter code'),
     body('doctorId')
@@ -39,26 +39,33 @@ router.post('/create-payment-intent',
       .isMongoId()
       .withMessage('Doctor ID must be a valid MongoDB ObjectId'),
     body('appointmentData')
+      .optional()
       .isObject()
       .withMessage('Appointment data must be an object'),
     body('appointmentData.date')
-      .notEmpty()
-      .withMessage('Appointment date is required'),
+      .optional()
+      .isString()
+      .withMessage('Appointment date must be a string'),
     body('appointmentData.slot')
-      .notEmpty()
-      .withMessage('Appointment slot is required'),
+      .optional()
+      .isString()
+      .withMessage('Appointment slot must be a string'),
     body('appointmentData.patientName')
-      .notEmpty()
-      .withMessage('Patient name is required'),
+      .optional()
+      .isString()
+      .withMessage('Patient name must be a string'),
     body('appointmentData.ageGroup')
-      .notEmpty()
-      .withMessage('Age group is required'),
+      .optional()
+      .isString()
+      .withMessage('Age group must be a string'),
     body('appointmentData.gender')
-      .notEmpty()
-      .withMessage('Gender is required'),
+      .optional()
+      .isString()
+      .withMessage('Gender must be a string'),
     body('appointmentData.problem')
-      .notEmpty()
-      .withMessage('Problem description is required')
+      .optional()
+      .isString()
+      .withMessage('Problem description must be a string')
   ],
   createPaymentIntent
 );

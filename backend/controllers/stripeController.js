@@ -16,13 +16,13 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
  */
 export const createPaymentIntent = async (req, res) => {
   try {
-    const { amount, currency = 'USD', doctorId, appointmentData } = req.body;
+    const { amount, currency = 'USD', doctorId, appointmentData = {} } = req.body;
     
     // Validate required fields
-    if (!amount || !doctorId || !appointmentData) {
+    if (!amount || !doctorId) {
       return res.status(400).json({ 
         success: false, 
-        message: 'Missing required fields: amount, doctorId, appointmentData' 
+        message: 'Missing required fields: amount, doctorId' 
       });
     }
 
@@ -77,12 +77,12 @@ export const createPaymentIntent = async (req, res) => {
         patientId: req.user._id.toString(),
         patientName: patient.name,
         patientEmail: patient.email,
-        appointmentDate: appointmentData.date,
-        appointmentSlot: appointmentData.slot,
-        appointmentProblem: appointmentData.problem || '',
-        appointmentPatientName: appointmentData.patientName || '',
-        appointmentAgeGroup: appointmentData.ageGroup || '',
-        appointmentGender: appointmentData.gender || '',
+        appointmentDate: appointmentData?.date || '',
+        appointmentSlot: appointmentData?.slot || '',
+        appointmentProblem: appointmentData?.problem || '',
+        appointmentPatientName: appointmentData?.patientName || patient.name,
+        appointmentAgeGroup: appointmentData?.ageGroup || '',
+        appointmentGender: appointmentData?.gender || '',
         originalAmount: amount.toString(),
         originalCurrency: currency,
         bookingTimestamp: new Date().toISOString(),
@@ -91,20 +91,24 @@ export const createPaymentIntent = async (req, res) => {
     });
 
     // Log payment intent creation
-    await AuditLog.create({
-      user: req.user._id,
-      action: 'payment_intent_created',
-      target: 'Payment',
-      targetId: paymentIntent.id,
-      details: JSON.stringify({
-        amount,
-        currency,
-        doctorId,
-        paymentIntentId: paymentIntent.id,
-        appointmentDate: appointmentData.date,
-        appointmentSlot: appointmentData.slot
-      })
-    });
+    try {
+      await AuditLog.create({
+        user: req.user._id,
+        action: 'payment_intent_created',
+        target: 'Payment',
+        details: JSON.stringify({
+          amount,
+          currency,
+          doctorId,
+          paymentIntentId: paymentIntent.id,
+          appointmentDate: appointmentData?.date || '',
+          appointmentSlot: appointmentData?.slot || ''
+        })
+      });
+    } catch (auditError) {
+      console.error('Failed to create audit log:', auditError);
+      // Don't fail the payment creation if audit logging fails
+    }
 
     res.json({
       success: true,
@@ -266,20 +270,25 @@ export const confirmPayment = async (req, res) => {
     });
 
     // Log successful appointment creation
-    await AuditLog.create({
-      user: req.user._id,
-      action: 'appointment_booked_with_payment',
-      target: 'Appointment',
-      targetId: appointment._id,
-      details: JSON.stringify({
-        doctorId,
-        paymentIntentId,
-        amount: paymentIntent.metadata.originalAmount,
-        currency: paymentIntent.metadata.originalCurrency,
-        date: appointmentData.date,
-        slot: appointmentData.slot
-      })
-    });
+    try {
+      await AuditLog.create({
+        user: req.user._id,
+        action: 'appointment_booked_with_payment',
+        target: 'Appointment',
+        targetId: appointment._id,
+        details: JSON.stringify({
+          doctorId,
+          paymentIntentId,
+          amount: paymentIntent.metadata.originalAmount,
+          currency: paymentIntent.metadata.originalCurrency,
+          date: appointmentData.date,
+          slot: appointmentData.slot
+        })
+      });
+    } catch (auditError) {
+      console.error('Failed to create appointment booking audit log:', auditError);
+      // Don't fail the appointment creation if audit logging fails
+    }
 
     // Send notification to doctor
     await Notification.create({
@@ -473,17 +482,22 @@ export const refundPayment = async (req, res) => {
     });
 
     // Log refund
-    await AuditLog.create({
-      user: req.user._id,
-      action: 'payment_refunded',
-      target: 'Appointment',
-      targetId: appointmentId,
-      details: JSON.stringify({
-        refundId: refund.id,
-        amount: refund.amount / 100,
-        reason: reason
-      })
-    });
+    try {
+      await AuditLog.create({
+        user: req.user._id,
+        action: 'payment_refunded',
+        target: 'Appointment',
+        targetId: appointmentId,
+        details: JSON.stringify({
+          refundId: refund.id,
+          amount: refund.amount / 100,
+          reason: reason
+        })
+      });
+    } catch (auditError) {
+      console.error('Failed to create refund audit log:', auditError);
+      // Don't fail the refund process if audit logging fails
+    }
 
     res.json({
       success: true,

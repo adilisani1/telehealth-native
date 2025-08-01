@@ -17,14 +17,17 @@ const authHeaders = async () => {
 
 /**
  * Create a payment intent for appointment booking
- * @param {number} amount - Amount in the base currency unit (e.g., dollars, not cents)
- * @param {string} currency - Currency code (e.g., 'USD', 'PKR')
- * @param {string} doctorId - Doctor's MongoDB ObjectId
- * @param {object} appointmentData - Appointment details
+ * @param {object} paymentData - Payment data object containing amount, currency, doctorId, and appointmentData
+ * @param {number} paymentData.amount - Amount in base currency unit (e.g., dollars, not cents)
+ * @param {string} paymentData.currency - Currency code (e.g., 'USD', 'PKR')
+ * @param {string} paymentData.doctorId - Doctor's MongoDB ObjectId
+ * @param {object} paymentData.appointmentData - Appointment details
  * @returns {Promise} Payment intent response
  */
-export const createPaymentIntent = async (amount, currency, doctorId, appointmentData) => {
+export const createPaymentIntent = async (paymentData) => {
   try {
+    const { amount, currency, doctorId, appointmentData } = paymentData;
+    
     const response = await api.post('/api/stripe/create-payment-intent', {
       amount,
       currency,
